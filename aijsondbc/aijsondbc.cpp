@@ -14,7 +14,7 @@ extern "C" {
 	EXPORT  int ffi_aijsondb_query(const char* query, char* result_buffer, int buffer_size) {
 		return aijsondb_query(query, result_buffer, buffer_size);
 	}
-	EXPORT int ffi_domino_free_data() {
+	EXPORT int ffi_aijsondb_free_data() {
 		return aijsondb_free_data();
 	}
 	EXPORT  int ffi_aijsondb_last_error(char* result_buffer, int buffer_size) {
