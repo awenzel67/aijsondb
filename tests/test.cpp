@@ -126,6 +126,24 @@ TEST_CASE("Test Domino Validate", "[domino]") {
 }
 
 
+TEST_CASE("Test Domino buckets index", "[domino]") {
+	std::string path_data = test_data_dir();
+	path_data += "500 KB_V2.json";
+	std::string path_schema = test_data_dir();
+	path_schema += "employeeSchemaDescription_V2.json";
+	int res = aijsondb_load_data(path_data.c_str(), path_schema.c_str());
+	REQUIRE(res == 0);
+	char buffer[1024];
+	std::string query = R"( 
+let result=[data.employees[10].bindex,data.employees[10].eindex];
+)";
+	res = aijsondb_query(query.c_str(), buffer, 1024);
+	std::cout << "Query result: " << buffer << std::endl;
+	std::string sres(buffer);
+	REQUIRE(res == 0);
+	REQUIRE(sres == "[0,10]");
+}
+
 /*
 int main(int argc, char* argv[]) {
 	int res=domino_query_test();

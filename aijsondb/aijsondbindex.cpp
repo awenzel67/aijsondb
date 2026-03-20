@@ -6,9 +6,22 @@
 
 
 const char* CREATE_INDEX_JS_1 = R"(
-let buckets=domino_buckets();
-let nbucket=domino_bucket_length(buckets[0]);
-let jschema=domino_schema();
+let buckets=aijsondb_buckets();
+let nbucket=aijsondb_bucket_length(buckets[0]);
+let jschema=aijsondb_schema();
+function get_bucket_index_from_name(bucket_name){
+   if(buckets && buckets.length>0)
+   {
+     for (var i=0; i<buckets.length; i++)
+     {
+        if (buckets[i] === bucket_name)
+        {
+            return i;
+        }
+     }
+   }
+   return -1;
+}
 )";
 
 const char* CREATE_INDEX_JS_2 = R"( 
@@ -24,12 +37,14 @@ function generate_root_classes_from_json_schema(json_schema,get_entity_data_func
         if(arraydesc["type"]!=='array')
             return null;
         let entity_name="ED"+key;
+        let entity_index=get_bucket_index_from_name(key);
         var source_lines=[];
         source_lines.push(`
  class ${entity_name} {
    constructor(eindex)
     {
         this.eindex=eindex;
+        this.bindex=${entity_index};
     }
 `
         )
@@ -64,7 +79,7 @@ let root_class_scripts=generate_root_classes_from_json_schema(jschema,"get_entit
 const char* CREATE_INDEX_JS_4 = R"( 
 function get_entity_data_function(rootBucket,index)
 {
-    return domino_bucket_object(rootBucket,index);
+    return aijsondb_bucket_object(rootBucket,index);
 }
 )";
 
@@ -72,7 +87,7 @@ const char* CREATE_INDEX_JS_5 = R"(
 data={};
 for (const property in root_class_scripts) {
     let ClassEntity=eval(root_class_scripts[property]);
-    let nentities=domino_bucket_length(property);
+    let nentities=aijsondb_bucket_length(property);
     var employees8=[];
     for (var i=0;i<nentities;i++)
     {

@@ -164,30 +164,85 @@ bool handle_virtual_object(const JSValue& jsv, JSContext* ctx, char* buffer, int
 	if (length > 0)
 		return false;
 
+
+	JSValue jsvb = JS_GetPropertyStr(ctx, jsv, "bindex");
+	if (JS_IsException(jsvb))
+		return false;
+
+	if (JS_IsUndefined(jsvb))
+	{
+		JS_FreeValue(ctx, jsvb);
+		return false;
+	}
+
+	int32_t bindex;
+	if (JS_ToInt32(ctx, &bindex, jsvb) < 0)
+	{
+		JS_FreeValue(ctx, jsvb);
+		return false;
+	}
+
+	if (bindex < 0)
+	{
+		JS_FreeValue(ctx, jsvb);
+		return false;
+	}
+
+	int i = 0;
+	std::string bucket_name;
+	for (const auto& pair : jobject_cache) {
+		if (i == bindex)
+		{
+			bucket_name = pair.first;
+			break;
+		}
+		i++;
+	}
+
+	if (bucket_name.empty())
+	{
+		JS_FreeValue(ctx, jsvb);
+		return false;
+	}
+
 	JSValue jsvo = JS_GetPropertyStr(ctx, jsv, "eindex");
 	if (JS_IsException(jsvo))
+	{
+		JS_FreeValue(ctx, jsvb);
 		return false;
+	}
 
 	if (JS_IsUndefined(jsvo))
 	{
+		JS_FreeValue(ctx, jsvb);
 		JS_FreeValue(ctx, jsvo);
 		return false;
 	}
 	
 	int32_t eindex;
 	if (JS_ToInt32(ctx, &eindex, jsvo) < 0)
+	{
+		JS_FreeValue(ctx, jsvb);
+		JS_FreeValue(ctx, jsvo);
 		return false;
-
+	}
 
 	if (eindex < 0)
+	{
+		JS_FreeValue(ctx, jsvb);
+		JS_FreeValue(ctx, jsvo);
 		return false;
+	}
 
-	if (eindex>=jobject_cache["employees"].size())
+	if (eindex >= jobject_cache[bucket_name].size())
+	{
+		JS_FreeValue(ctx, jsvb);
+		JS_FreeValue(ctx, jsvo);
 		return false;
-
+	}
 	
 					//printf("eindex==%d\n", eindex);
-	std::string jvalue = jobject_cache["employees"][eindex];
+	std::string jvalue = jobject_cache[bucket_name][eindex];
 	buffer[0] = '\0';
 	bool ret=false;
 	if (jvalue.size() < nbuffer - 1) {
@@ -197,7 +252,8 @@ bool handle_virtual_object(const JSValue& jsv, JSContext* ctx, char* buffer, int
 	else
 	{
 	}
-	//JS_FreeValue(ctx, jsv);
+	JS_FreeValue(ctx, jsvb);
+	JS_FreeValue(ctx, jsvo);
 	return ret;
 }
 
@@ -734,17 +790,17 @@ int init_functions(JSContext* ctx)
 {
 	JSValue global_obj = JS_GetGlobalObject(ctx);
 
-	JSValue get_bucket_object = JS_NewCFunction(ctx, js_get_bucket_object, "domino_bucket_object", 2);
-	JS_SetPropertyStr(ctx, global_obj, "domino_bucket_object", get_bucket_object);
+	JSValue get_bucket_object = JS_NewCFunction(ctx, js_get_bucket_object, "aijsondb_bucket_object", 2);
+	JS_SetPropertyStr(ctx, global_obj, "aijsondb_bucket_object", get_bucket_object);
 	
-	JSValue get_buckets = JS_NewCFunction(ctx, js_get_buckets, "domino_buckets", 0);
-	JS_SetPropertyStr(ctx, global_obj, "domino_buckets", get_buckets);
+	JSValue get_buckets = JS_NewCFunction(ctx, js_get_buckets, "aijsondb_buckets", 0);
+	JS_SetPropertyStr(ctx, global_obj, "aijsondb_buckets", get_buckets);
 	
-	JSValue get_len_bucket = JS_NewCFunction(ctx, js_get_bucket_length, "domino_bucket_length", 1);
-	JS_SetPropertyStr(ctx, global_obj, "domino_bucket_length", get_len_bucket);
+	JSValue get_len_bucket = JS_NewCFunction(ctx, js_get_bucket_length, "aijsondb_bucket_length", 1);
+	JS_SetPropertyStr(ctx, global_obj, "aijsondb_bucket_length", get_len_bucket);
 
-	JSValue get_schema = JS_NewCFunction(ctx, js_get_schema , "domino_schema", 0);
-	JS_SetPropertyStr(ctx, global_obj, "domino_schema", get_schema);
+	JSValue get_schema = JS_NewCFunction(ctx, js_get_schema , "aijsondb_schema", 0);
+	JS_SetPropertyStr(ctx, global_obj, "aijsondb_schema", get_schema);
 	
 	JS_FreeValue(ctx, global_obj);
 	return 0;
@@ -770,12 +826,12 @@ int aijsondb_query_test()
 		ctx = JS_NewCustomContext(rt);
 		const int nbuffer = 1024 * 10;
 		char buffer[nbuffer];
-		//printf("%s\n", domino_data);
+		//printf("%s\n", aijsondb_data);
 
 		init_functions(ctx);
 
 		{
-			std::string query = "domino_buckets()";
+			std::string query = "aijsondb_buckets()";
 			JSValue jsv = JS_Eval(ctx, query.c_str(), query.size(), "<test>", JS_EVAL_TYPE_GLOBAL);
 			//int32_t int_result;
 			//JS_ToInt32(ctx, &int_result, jsv);
@@ -798,7 +854,7 @@ int aijsondb_query_test()
 		}
 
 		{
-			std::string query = "domino_bucket_length('employees')";
+			std::string query = "aijsondb_bucket_length('employees')";
 			JSValue jsv = JS_Eval(ctx, query.c_str(), query.size(), "<test>", JS_EVAL_TYPE_GLOBAL);
 			//int32_t int_result;
 			//JS_ToInt32(ctx, &int_result, jsv);
@@ -820,7 +876,7 @@ int aijsondb_query_test()
 	
 
 		{
-			std::string query = "domino_bucket_object('employees',0)";
+			std::string query = "aijsondb_bucket_object('employees',0)";
 			JSValue jsv = JS_Eval(ctx, query.c_str(), query.size(), "<test>", JS_EVAL_TYPE_GLOBAL);
 			//int32_t int_result;
 			//JS_ToInt32(ctx, &int_result, jsv);
@@ -843,7 +899,7 @@ int aijsondb_query_test()
 		}
 
 		{
-			std::string query = "domino_schema()";
+			std::string query = "aijsondb_schema()";
 			JSValue jsv = JS_Eval(ctx, query.c_str(), query.size(), "<test>", JS_EVAL_TYPE_GLOBAL);
 			//int32_t int_result;
 			//JS_ToInt32(ctx, &int_result, jsv);
