@@ -1,0 +1,48 @@
+var result = [];
+var maxExperience = 0;
+
+// Iterate through each employee
+data.employees.forEach(function(employee) {
+    // Check if the employee has skills and experience data
+    if (employee.profile && employee.profile.contact && employee.profile.projects) {
+        employee.profile.projects.forEach(function(project) {
+            if (project.tasks) {
+                project.tasks.forEach(function(task) {
+                    if (task.assignedTo && task.assignedTo.skills && task.assignedTo.skills.experience) {
+                        var experience = task.assignedTo.skills.experience.years;
+                        
+                        // Update max experience and reset result if a higher experience is found
+                        if (experience > maxExperience) {
+                            maxExperience = experience;
+                            result = [{
+                                id: employee.id,
+                                name: employee.name,
+                                experience: experience
+                            }];
+                        }
+                        // Add employee to result if they match the max experience
+                        else if (experience === maxExperience) {
+                            result.push({
+                                id: employee.id,
+                                name: employee.name,
+                                experience: experience
+                            });
+                        }
+                    }
+                });
+            }
+        });
+    }
+});
+
+// Remove duplicates if any (same employee assigned to multiple tasks)
+var uniqueResult = [];
+var seenIds = new Set();
+result.forEach(function(emp) {
+    if (!seenIds.has(emp.id)) {
+        seenIds.add(emp.id);
+        uniqueResult.push(emp);
+    }
+});
+
+result = uniqueResult;
