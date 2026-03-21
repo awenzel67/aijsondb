@@ -1,6 +1,6 @@
-# dominodb - loved by AIs
+# aijsondb - loved by AIs
 
-Like any other database dominodb can be used to query a datastructure to get an answer data structure as result. What make it different is that we chose:
+Like any other database aijsondb can be used to query a datastructure to get an answer data structure as result. What make it different is that we chose:
 
 * A single JSON document as its data structure.
 * JavaScript as the query language.
@@ -12,7 +12,7 @@ These features are not good choices if a human writes the query but are rather g
 
 ### Prerequisites
 
-dominodb uses [CMake](https://cmake.org/) as its main build system. 
+aijsondb uses [CMake](https://cmake.org/) as its main build system. 
 
 ### Installation
 
@@ -20,11 +20,11 @@ dominodb uses [CMake](https://cmake.org/) as its main build system.
 
 Clone the repository:
 ```
-git clone https://github.com/awenzel67/dominodb.git
+git clone https://github.com/awenzel67/aijsondb.git
 ```
 Change working directory:
 ```
-cd dominodb
+cd aijsondb
 ```
 
 Build the project: 
@@ -36,7 +36,7 @@ cmake --build build
 Run the cli interface:
 ```
 cd build
-dominodbcli --database "../data/500 KB_V2.json" --schema "../data/employeeSchemaDescription_V2.json" "var result=data.employees.length"
+aijsondbcli --database "../data/500 KB_V2.json" --schema "../data/employeeSchemaDescription_V2.json" "var result=data.employees.length"
 ```
 
 #### Windows
@@ -45,34 +45,34 @@ Open the Visual Studio Developer Console.
 
 Clone the repository:
 ```
-git clone https://github.com/awenzel67/dominodb.git
+git clone https://github.com/awenzel67/aijsondb.git
 ```
 Change working directory:
 ```
-cd dominodb
+cd aijsondb
 ```
 
 Build the project: 
 ```
 cmake -B build
-cmake --build build
+cmake --build build --config Release
 ```
 
 Run the cli interface:
 ```
 cd build/Release
-dominodbcli --database "../../data/500 KB_V2.json" --schema "../../data/employeeSchemaDescription_V2.json" "var result=data.employees.length"
+./aijsondbcli.exe --database "../../data/500 KB_V2.json" --schema "../../data/employeeSchemaDescription_V2.json" "var result=data.employees.length"
 ```
 
 ## cli
 
 The build process creates the executable: 
-* Windows: dominodbcli.exe
-* Linux: dominodbcli
+* Windows: aijsondbcli.exe
+* Linux: aijsondbcli
 
 It can be used to query a json data object in a file.
 ```
-dominodbcli --database --schema "query"
+aijsondbcli --database --schema "query"
 ```
 --database path to the file containing the json object.\
 --schema path to the file containing the schema.\
@@ -83,7 +83,7 @@ The output on the terminal shows the result as json.
 To query the name of all employees use the following command:
 
 ```
-dominodbcli --database "../../data/500 KB_V2.json" --schema "../../data/employeeSchemaDescription_V2.json" "var result=data.employees.map(x=>x.name)"
+aijsondbcli --database "../../data/500 KB_V2.json" --schema "../../data/employeeSchemaDescription_V2.json" "var result=data.employees.map(x=>x.name)"
 ```
 
 
@@ -92,7 +92,7 @@ dominodbcli --database "../../data/500 KB_V2.json" --schema "../../data/employee
 During the build process additionally to the cli a dynamic library is created containing a simple API with the c functions:
 
 ```
-int ffi_domino_load_data(const char* filename, const char* schema)
+int ffi_aijsondb_load_data(const char* filename, const char* schema)
 ```
 * parameters:
     * const char* filename: path to the file containing the json object,
@@ -103,7 +103,7 @@ This function loads the json data from file into the C++ in memory data structur
 
 
 ```
-int ffi_domino_query(const char* query, char* result_buffer, int buffer_size)
+int ffi_aijsondb_query(const char* query, char* result_buffer, int buffer_size)
 ```
 * parameters:
   * const char* query: javascript expression to query the json data,
@@ -114,7 +114,7 @@ int ffi_domino_query(const char* query, char* result_buffer, int buffer_size)
 The function executes the query on the json data loaded before. The result is a json string which can be found in the result buffer. If an error occurs the return value is -1 and the result_buffer contains an error message.
 
 ```
-int ffi_domino_last_error(char* result_buffer, int buffer_size)
+int ffi_aijsondb_last_error(char* result_buffer, int buffer_size)
 ```
 * parameters:
   * char* result_buffer: last error message, 
@@ -124,7 +124,7 @@ int ffi_domino_last_error(char* result_buffer, int buffer_size)
 This function can be used to get the actual errormessage if a function returns an error.
 
 ```
-int ffi_domino_free_data()
+int ffi_aijsondb_free_data()
 ```
 Unload the json data and schema.
 
@@ -142,7 +142,7 @@ Handling the json data is done using the [jsoncons](https://github.com/danielapa
 
 ### Query Engine
 
-dominodb uses the [quickjs-ng](https://github.com/quickjs-ng/quickjs) javascript engine to apply the query on the json dataobject.
+aijsondb uses the [quickjs-ng](https://github.com/quickjs-ng/quickjs) javascript engine to apply the query on the json dataobject.
 Javascript data objects are loaded on demand from the C++ in memory data structure.
 
 ### Schema 
@@ -158,7 +158,7 @@ CLI: [CLI11](https://github.com/CLIUtils/CLI11)
 
 ## Status
 
-dominodb is actually used for comparing json/jsonschema/javascript with sqldatabase/sql/sqlschema. 
+aijsondb is actually used for comparing json/jsonschema/javascript with sqldatabase/sql/sqlschema. 
 It works well for this purpose and gives good results. On the other hand, the datasets used (see JSON files in the data directory) are rather small, and this is an alpha version, not production ready.
 
 Contributors interested in working with me on a database loved by AIs are welcome.
