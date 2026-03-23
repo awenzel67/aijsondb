@@ -148,7 +148,7 @@ Javascript data objects are loaded on demand from the C++ in memory data structu
 ### Schema 
 
 The json file is validated loading the data into the in memory data structure. 
-Library [jsoncons](https://github.com/danielaparker/jsoncons) is used for this reason. 
+Library [jsoncons](https://github.com/danielaparker/jsoncons) is used for this reason.
 
 ### Others
 
@@ -162,3 +162,11 @@ aijsondb is actually used for comparing json/jsonschema/javascript with sqldatab
 It works well for this purpose and gives good results. On the other hand, the datasets used (see JSON files in the data directory) are rather small, and this is an alpha version, not production ready.
 
 Contributors interested in working with me on a database loved by AIs are welcome.
+
+## Sample json data
+
+The file 500_KB_V2.json in the data folder is derived from the dataset "Employees { 10 } Level Nested Formatted Versions", specifically the "500 KB 10 Level Formatted" variant available at [page](https://sample.json-format.com/).
+
+The files test.json and 500_KB_V2Err.json are also based on this dataset.
+
+The JSON schema employeeSchemaDescription_V2.json was automatically generated from 500_KB_V2.json and subsequently edited by hand.
