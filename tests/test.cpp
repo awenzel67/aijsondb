@@ -144,6 +144,23 @@ let result=[data.employees[10].bindex,data.employees[10].eindex];
 	REQUIRE(sres == "[0,10]");
 }
 
+const char* TEST_QUERY_KO4 = "\nvar result = data.employees.filter(\nemployee => {\n  return employee.profile.projects.some(\n     project => {\n         return  project.name == 'Incubate World-Class Schema'; \n     } \n) \n}\n).map(employee => ({ \n    id : employee.id,\n    name : employee.name\n })\n)[0]    \n";
+
+TEST_CASE("Test problem with query 1", "[domino]") {
+	std::string path_data = test_data_dir();
+	path_data += "500 KB_V2.json";
+	std::string path_schema = test_data_dir();
+	path_schema += "employeeSchemaDescription_V2.json";
+	int res = aijsondb_load_data(path_data.c_str(), path_schema.c_str());
+	REQUIRE(res == 0);
+	char buffer[1024];
+	std::string query = TEST_QUERY_KO4;
+	res = aijsondb_query(query.c_str(), buffer, 1024*1000);
+	std::cout << "Query result: " << buffer << std::endl;
+	std::string sres(buffer);
+	REQUIRE(res == 0);
+}
+
 /*
 int main(int argc, char* argv[]) {
 	int res=domino_query_test();
