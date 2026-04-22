@@ -155,19 +155,34 @@ int aijsondb_query(const char* query, char* buffer, int nbuffer)
 			//	walk_objects_and_resolve(ctx,jsv,nullptr,rows,j);
 				jsoncons::json j;
 				toJsonWithVirtual(ctx, jsv, j);
-				std::stringstream sst;
-				sst << j;
-				std::string res=sst.str();
-				//std::cout << "Serialized JSON: " << sst.str() << std::endl;
-				JS_FreeValue(ctx, jsv);
-				buffer[0] = '\0';
-				if (res.size() < nbuffer - 1) {
-					strcpy(buffer, res.c_str());
+				if (!j.is_null())
+				{
+					std::stringstream sst;
+					sst << j;
+					std::string res = sst.str();
+					//std::cout << "Serialized JSON: " << sst.str() << std::endl;
+					JS_FreeValue(ctx, jsv);
+					buffer[0] = '\0';
+					if (res.size() < nbuffer - 1) {
+						strcpy(buffer, res.c_str());
+					}
+					else
+					{
+						ret = -1;
+						const char* error_message = "Buffer too small for result";
+						if (strlen(error_message) < nbuffer - 1) {
+							strcpy(buffer,error_message);
+						}
+						//printf("Buffer too small for result\n");
+					}
 				}
 				else
 				{
 					ret = -1;
-					//printf("Buffer too small for result\n");
+					const char* error_message = "result is undefined";
+					if (strlen(error_message) < nbuffer - 1) {
+						strcpy(buffer, error_message);
+					}
 				}
 			//JS_FreeCString(ctx, gh);
 		}

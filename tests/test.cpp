@@ -259,6 +259,10 @@ for (var i = 0; i < data.employees.length; i++) {
 		jsoncons::json j = jsoncons::json::parse(sres);
 		jsoncons::json je = j["employees"];
 		REQUIRE(je.size() == 29);
+		jsoncons::json jn = j["employees"][0]["name"];
+		std::string name =	jn.to_string();
+		REQUIRE(!name.empty());
+
 	}
 	catch (const std::exception& e)
 	{
@@ -267,6 +271,24 @@ for (var i = 0; i < data.employees.length; i++) {
 	}
 }
 
+
+TEST_CASE("Test aijsondb query issue 1 undefined", "[domino]") {
+	std::string path_data = test_data_dir();
+	path_data += "500 KB_V3.json";
+	std::string path_schema = test_data_dir();
+	path_schema += "employeeSchemaDescription_V3.json";
+	int res = aijsondb_load_data(path_data.c_str(), path_schema.c_str());
+	REQUIRE(res == 0);
+	const int nbuffer = 1024 * 100;
+	char buffer[nbuffer];
+	std::string query = R"( 
+var result = Date.ricol;
+)";
+	res = aijsondb_query(query.c_str(), buffer, nbuffer);
+	REQUIRE(res == -1);
+	std::string sres(buffer);
+	REQUIRE(sres.size() > 0);
+}
 
 /*
 int main(int argc, char* argv[]) {
@@ -302,11 +324,29 @@ TEST_CASE("Test aijsondb serialize", "[domino]") {
 			return;
 		}
 		jsoncons::json j;
-		toJson2(ctx, jsv, j);
+		toJsonWithVirtual(ctx, jsv, j);
 		std::stringstream sst;
 		sst << j;
 		std::cout << "Serialized JSON: " << sst.str() << std::endl;
 		REQUIRE(sst.str() == "\"a\"");
+		JS_FreeValue(ctx, jsv);
+	}
+	{
+		const char* eres = "true";
+		JSValue jsv = JS_Eval(ctx, eres, strlen(eres), "<result>", JS_EVAL_TYPE_GLOBAL);
+		if (JS_IsException(jsv)) {
+			FAIL("Failed to evaluate JavaScript expression");
+			JS_FreeValue(ctx, jsv);
+			JS_FreeContext(ctx);
+			JS_FreeRuntime(rt);
+			return;
+		}
+		jsoncons::json j;
+		toJsonWithVirtual(ctx, jsv, j);
+		std::stringstream sst;
+		sst << j;
+		std::cout << "Serialized JSON: " << sst.str() << std::endl;
+		REQUIRE(sst.str() == eres);
 		JS_FreeValue(ctx, jsv);
 	}
 	{
@@ -320,7 +360,7 @@ TEST_CASE("Test aijsondb serialize", "[domino]") {
 			return;
 		}
 		jsoncons::json j;
-		toJson2(ctx, jsv, j);
+		toJsonWithVirtual(ctx, jsv, j);
 		std::stringstream sst;
 		sst << j;
 		std::cout << "Serialized JSON: " << sst.str() << std::endl;
@@ -339,7 +379,7 @@ TEST_CASE("Test aijsondb serialize", "[domino]") {
 			return;
 		}
 		jsoncons::json j;
-		toJson2(ctx, jsv, j);
+		toJsonWithVirtual(ctx, jsv, j);
 		std::stringstream sst;
 		sst << j;
 		std::cout << "Serialized JSON: " << sst.str() << std::endl;
@@ -368,12 +408,71 @@ TEST_CASE("Test aijsondb serialize complex", "[domino]") {
 			return;
 		}
 		jsoncons::json j;
-		toJson2(ctx, jsv, j);
+		toJsonWithVirtual(ctx, jsv, j);
 		std::stringstream sst;
 		sst << j;
 		std::cout << "Serialized JSON: " << sst.str() << std::endl;
 		REQUIRE(sst.str() == eres_test);
 		JS_FreeValue(ctx, jsv);
+	}
+	JS_FreeContext(ctx);
+	JS_FreeRuntime(rt);
+}
+
+TEST_CASE("Test aijsondb serialize datetime", "[domino]") {
+
+	JSRuntime* rt;
+	JSContext* ctx;
+	rt = JS_NewRuntime();
+	ctx = JS_NewContext(rt);
+	{
+		const char* eresTest = "\"2026-04-11T08:30:00.000Z\"";
+	    const char* eres = "new Date(Date.UTC(2026, 3, 11, 8, 30))";
+		JSValue jsv = JS_Eval(ctx, eres, strlen(eres), "<result>", JS_EVAL_TYPE_GLOBAL);
+		if (JS_IsException(jsv)) {
+			FAIL("Failed to evaluate JavaScript expression");
+			JS_FreeValue(ctx, jsv);
+			JS_FreeContext(ctx);
+			JS_FreeRuntime(rt);
+			return;
+		}
+		jsoncons::json j;
+		toJsonWithVirtual(ctx, jsv, j);
+		std::stringstream sst;
+		sst << j;
+		std::cout << "Serialized JSON: " << sst.str() << std::endl;
+		REQUIRE(sst.str() == eresTest);
+		JS_FreeValue(ctx, jsv);
+		
+	}
+	JS_FreeContext(ctx);
+	JS_FreeRuntime(rt);
+}
+
+TEST_CASE("Test aijsondb serialize undefined", "[domino]") {
+
+	JSRuntime* rt;
+	JSContext* ctx;
+	rt = JS_NewRuntime();
+	ctx = JS_NewContext(rt);
+	{
+		const char* eres = "Date.nobel";
+		JSValue jsv = JS_Eval(ctx, eres, strlen(eres), "<result>", JS_EVAL_TYPE_GLOBAL);
+		if (JS_IsException(jsv)) {
+			FAIL("Failed to evaluate JavaScript expression");
+			JS_FreeValue(ctx, jsv);
+			JS_FreeContext(ctx);
+			JS_FreeRuntime(rt);
+			return;
+		}
+		jsoncons::json j;
+		toJsonWithVirtual(ctx, jsv, j);
+		std::stringstream sst;
+		sst << j;
+		std::cout << "Serialized JSON: " << sst.str() << std::endl;
+		REQUIRE(j.is_null());
+		JS_FreeValue(ctx, jsv);
+
 	}
 	JS_FreeContext(ctx);
 	JS_FreeRuntime(rt);
