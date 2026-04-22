@@ -11,10 +11,10 @@ def query_data_javascript_qj():
     elif system=="Linux":
       libObject=ctypes.CDLL('../build/libaijsondbc.so')
 
-    cdata = ctypes.c_char_p(b"../data/500 KB_V2.json")
-    cschema=ctypes.c_char_p(b"../data/employeeSchemaDescription_V2.json")
+    cdata = ctypes.c_char_p(b"../data/500 KB_V3.json")
+    cschema=ctypes.c_char_p(b"../data/employeeSchemaDescription_V3.json")
 
-    with open("query.txt", "r", encoding="utf-8") as file:
+    with open("query_long_result.txt", "r", encoding="utf-8") as file:
         content = file.read()
     
     bquery=content.encode()
@@ -34,6 +34,7 @@ def query_data_javascript_qj():
     res=libObject.ffi_aijsondb_query(cquery,buffer,nbuffer)
     if res == 0:
         sjson=buffer.value.decode()
+        print(sjson)
         ret=json.loads(sjson)
         print("Query with qjs")
         pprint.pprint(ret)

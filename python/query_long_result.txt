@@ -1,0 +1,6 @@
+var result = [];
+for (var i = 0; i < data.employees.length; i++) {
+    if (data.employees[i].name.includes("Smith")) {
+        result.push(data.employees[i]);
+    }
+}

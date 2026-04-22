@@ -4,7 +4,7 @@ project(aijsondb)
 
 if (MSVC)
     # warning level 4
-    add_compile_options(/experimental:c11atomics /std:c11)
+    add_compile_options(/experimental:c11atomics /std:c11 /bigobj)
 endif()
 
 set(ENV{TEST_DOMINO_DATA} ${PROJECT_SOURCE_DIR}/data)
@@ -20,11 +20,11 @@ target_sources(aijsondbcli
     aijsondb/aijsondblib.cpp
     aijsondb/aijsondbindex.cpp
     third_party/quickjs-ng/quickjs-amalgam.c
-)
+ "aijsondb/aijsondbresolver.cpp")
 
 add_library( 
     aijsondbc   SHARED aijsondbc/aijsondbc.cpp aijsondb/aijsondblib.cpp aijsondb/aijsondbindex.cpp third_party/quickjs-ng/quickjs-amalgam.c 
-)
+ "aijsondb/aijsondbresolver.cpp")
 
 Include(FetchContent)
 
@@ -46,7 +46,7 @@ target_sources(tests
     aijsondb/aijsondblib.cpp
      aijsondb/aijsondbindex.cpp
     third_party/quickjs-ng/quickjs-amalgam.c
-)
+ "aijsondb/aijsondbresolver.cpp")
 target_compile_definitions(tests PUBLIC TEST_DATA_DIR="${CMAKE_CURRENT_SOURCE_DIR}/data/")
 target_link_libraries(tests PRIVATE Catch2::Catch2WithMain)
 

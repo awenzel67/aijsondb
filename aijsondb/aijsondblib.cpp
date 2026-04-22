@@ -12,6 +12,7 @@
 #include "quickjs.h"
 #include "quickjs-libc.h"
 #include "aijsondbindex.h"
+#include "aijsondbresolver.h"
 
 static JSContext* JS_NewCustomContext(JSRuntime* rt)
 {
@@ -25,41 +26,6 @@ std::mutex mtx;
 static std::map<std::string, std::vector<std::string>> jobject_cache;
 static std::string jobject_cache_schema;
 static std::string last_error_message;
-
-
-/*
-char* read_file_to_string(const char* filename) {
-	FILE* f = fopen(filename, "rb");
-	if (!f) {
-		perror("Error opening file");
-		return NULL;
-	}
-
-	fseek(f, 0, SEEK_END);
-	long length = ftell(f);
-	rewind(f);
-
-	const char* prefix = "let data=";
-	domino_data_len = length  + 1+ 9;
-	char* buffer = (char*) malloc(domino_data_len+domino_data_query_len_max);
-
-	if (!buffer) {
-		perror("Memory allocation failed");
-		fclose(f);
-		return NULL;
-	}
-	
-	for (int i = 0; prefix[i] != '\0'; i++) {
-		buffer[i] = prefix[i];
-	}
-
-	size_t read_len = fread(buffer+9, 1, length, f);
-	buffer[read_len+9] = '\0'; // Null-terminate the string
-
-	fclose(f);
-	return buffer;
-}
-*/
 
 int aijsondb_free_data()
 {
@@ -96,167 +62,34 @@ int aijsondb_load_data(const char* filepath_data,const char* filepath_schema)
 
 int init_functions(JSContext* ctx);
 
-bool is_virtual_result_object(JSContext* ctx, const JSValue& jsv)
+const char* get_bucket_object(const char* bucket, int index)
 {
-	bool is_virtual = false;
-	if (!JS_IsObject(jsv))
-		return false;
+    std::string bucket_str(bucket);
 
-	int64_t length;
-	int gu = JS_GetLength(ctx, jsv, &length);
-	if (length > 0)
+	if(jobject_cache.find(bucket_str) == jobject_cache.end())
 	{
-		return false;
+		return "";
 	}
 
-	JSValue jsvo = JS_GetPropertyStr(ctx, jsv, "eindex");
-	if (JS_IsException(jsvo))
-		return false;
-
-	if (!JS_IsUndefined(jsvo))
+	if (jobject_cache[bucket].size() <= index)
 	{
-		is_virtual = true;		
+		return "";
 	}
-	JS_FreeValue(ctx, jsvo);
-	return is_virtual;
+
+	return jobject_cache[bucket][index].c_str();
 }
 
-bool is_virtual_result_array(JSContext* ctx, const JSValue& jsv)
-{
-	bool is_virtual = false;
-	if (!JS_IsObject(jsv))
-		return false;
-
-	int64_t length;
-	int gu = JS_GetLength(ctx, jsv, &length);
-	if (length == 0)
-	{
-		return false;
-	}
-
-	is_virtual = true;
-	for (int i=0;i<length;i++)
-	{
-		JSValue jsve = JS_GetPropertyUint32(ctx, jsv, i);
-		if (!JS_IsException(jsve))
-		{
-			if(!is_virtual_result_object(ctx, jsve))
-			{
-				is_virtual=false;
-				JS_FreeValue(ctx, jsve);
-				break;
-			}
-			JS_FreeValue(ctx, jsve);
-		}
-	}
-	return is_virtual;
-}
-
-
-bool handle_virtual_object(const JSValue& jsv, JSContext* ctx, char* buffer, int nbuffer)
-{
-	if (!JS_IsObject(jsv))
-		return false;
-
-	int64_t length;
-	int gu = JS_GetLength(ctx, jsv, &length);
-
-	if (length > 0)
-		return false;
-
-
-	JSValue jsvb = JS_GetPropertyStr(ctx, jsv, "bindex");
-	if (JS_IsException(jsvb))
-		return false;
-
-	if (JS_IsUndefined(jsvb))
-	{
-		JS_FreeValue(ctx, jsvb);
-		return false;
-	}
-
-	int32_t bindex;
-	if (JS_ToInt32(ctx, &bindex, jsvb) < 0)
-	{
-		JS_FreeValue(ctx, jsvb);
-		return false;
-	}
-
-	if (bindex < 0)
-	{
-		JS_FreeValue(ctx, jsvb);
-		return false;
-	}
-
+const char* get_bucket_name_from_index(int index) {
 	int i = 0;
-	std::string bucket_name;
 	for (const auto& pair : jobject_cache) {
-		if (i == bindex)
+		if (i == index)
 		{
-			bucket_name = pair.first;
-			break;
+			return pair.first.c_str();
 		}
 		i++;
 	}
-
-	if (bucket_name.empty())
-	{
-		JS_FreeValue(ctx, jsvb);
-		return false;
-	}
-
-	JSValue jsvo = JS_GetPropertyStr(ctx, jsv, "eindex");
-	if (JS_IsException(jsvo))
-	{
-		JS_FreeValue(ctx, jsvb);
-		return false;
-	}
-
-	if (JS_IsUndefined(jsvo))
-	{
-		JS_FreeValue(ctx, jsvb);
-		JS_FreeValue(ctx, jsvo);
-		return false;
-	}
-	
-	int32_t eindex;
-	if (JS_ToInt32(ctx, &eindex, jsvo) < 0)
-	{
-		JS_FreeValue(ctx, jsvb);
-		JS_FreeValue(ctx, jsvo);
-		return false;
-	}
-
-	if (eindex < 0)
-	{
-		JS_FreeValue(ctx, jsvb);
-		JS_FreeValue(ctx, jsvo);
-		return false;
-	}
-
-	if (eindex >= jobject_cache[bucket_name].size())
-	{
-		JS_FreeValue(ctx, jsvb);
-		JS_FreeValue(ctx, jsvo);
-		return false;
-	}
-	
-					//printf("eindex==%d\n", eindex);
-	std::string jvalue = jobject_cache[bucket_name][eindex];
-	buffer[0] = '\0';
-	bool ret=false;
-	if (jvalue.size() < nbuffer - 1) {
-		strcpy(buffer, jvalue.c_str());
-		ret = true;
-	}
-	else
-	{
-	}
-	JS_FreeValue(ctx, jsvb);
-	JS_FreeValue(ctx, jsvo);
-	return ret;
+	return "";
 }
-
 bool add_to_buffer(char* buffer, int nbuffer, const char* textf, int& irun)
 {
 	if (irun < 0)
@@ -272,52 +105,6 @@ bool add_to_buffer(char* buffer, int nbuffer, const char* textf, int& irun)
 	irun += strlen(textf);
 	return true;
 }
-
-bool handle_virtual_array(const JSValue& jsv, JSContext* ctx, char* buffer, int nbuffer)
-{
-	if (!JS_IsObject(jsv))
-		return false;
-
-	int64_t length;
-	int gu = JS_GetLength(ctx, jsv, &length);
-
-	if (length <= 0)
-		return false;
-
-	buffer[0] = '\0';
-	int ir = 0;
-	bool added=add_to_buffer(buffer, nbuffer, "[", ir);
-	if (!added)
-		return false;
-
-	for (int i = 0; i < length; i++)
-	{
-		JSValue jsve = JS_GetPropertyUint32(ctx, jsv, i);
-		if (!JS_IsException(jsve))
-		{
-			char* buffer_loc = new char[nbuffer];
-			buffer_loc[0] = '\0';
-
-			if (handle_virtual_object(jsve, ctx, buffer_loc, nbuffer))
-			{
-				added = add_to_buffer(buffer, nbuffer, buffer_loc, ir);
-				if (!added)
-				{
-					delete buffer_loc;
-					JS_FreeValue(ctx, jsve);
-					return false;
-				}
-			}
-			delete buffer_loc;
-			JS_FreeValue(ctx, jsve);
-		}
-	}
-	added = add_to_buffer(buffer, nbuffer, "]", ir);
-	if (!added)
-		return false;
-	return true;
-}
-
 
 int aijsondb_query(const char* query, char* buffer, int nbuffer)
 {
@@ -363,46 +150,40 @@ int aijsondb_query(const char* query, char* buffer, int nbuffer)
 			return -1;
 		}
 		else {
-
-			bool is_virtual_object = is_virtual_result_object(ctx,jsv);
-			bool is_virtual_array = is_virtual_result_array(ctx, jsv);
-			if (is_virtual_object)
-			{
-				bool is_handled=handle_virtual_object(jsv, ctx, buffer, nbuffer);
-				if (!is_handled)
-					ret = -1;
-				JS_FreeValue(ctx, jsv);
-			}
-			else if (is_virtual_array)
-			{
-				bool is_handled=handle_virtual_array(jsv, ctx, buffer, nbuffer);
-				if (!is_handled)
-					ret = -1;
-				JS_FreeValue(ctx, jsv);
-			}
-			else
-			{
-				//JSClassID json_class_id=JS_GetClassID(jsv);
-				//JSAtom jcn=JS_GetClassName(rt, json_class_id);
-				//const char * gh=JS_AtomToCString(ctx, jcn);
-				JSValue jjson = JS_JSONStringify(ctx, jsv, JS_UNDEFINED, JS_UNDEFINED);
-				const char* jsh = JS_ToCString(ctx, jjson);
-				//printf("GGGGGG\n");
-				//printf("%s\n", jsh);
-				buffer[0] = '\0';
-				if (strlen(jsh) < nbuffer - 1) {
-					strcpy(buffer, jsh);
+			//	ResultRows rows;
+			//	jsoncons::json j;
+			//	walk_objects_and_resolve(ctx,jsv,nullptr,rows,j);
+				jsoncons::json j;
+				toJsonWithVirtual(ctx, jsv, j);
+				if (!j.is_null())
+				{
+					std::stringstream sst;
+					sst << j;
+					std::string res = sst.str();
+					//std::cout << "Serialized JSON: " << sst.str() << std::endl;
+					JS_FreeValue(ctx, jsv);
+					buffer[0] = '\0';
+					if (res.size() < nbuffer - 1) {
+						strcpy(buffer, res.c_str());
+					}
+					else
+					{
+						ret = -1;
+						const char* error_message = "Buffer too small for result";
+						if (strlen(error_message) < nbuffer - 1) {
+							strcpy(buffer,error_message);
+						}
+						//printf("Buffer too small for result\n");
+					}
 				}
 				else
 				{
 					ret = -1;
-					//printf("Buffer too small for result\n");
+					const char* error_message = "result is undefined";
+					if (strlen(error_message) < nbuffer - 1) {
+						strcpy(buffer, error_message);
+					}
 				}
-				JS_FreeValue(ctx, jjson);
-				JS_FreeValue(ctx, jsv);
-				//JS_FreeAtom(ctx, jcn);
-				JS_FreeCString(ctx, jsh);
-			}
 			//JS_FreeCString(ctx, gh);
 		}
 	}
@@ -410,70 +191,6 @@ int aijsondb_query(const char* query, char* buffer, int nbuffer)
 	JS_FreeContext(ctx);
 	JS_FreeRuntime(rt);
 	return ret;
-}
-
-int aijsondb_query_v0(const char* query, char* buffer, int nbuffer)
-{
-	std::lock_guard<std::mutex> lock(mtx);
-	JSRuntime* rt;
-	JSContext* ctx;
-	rt = JS_NewRuntime();
-	ctx = JS_NewCustomContext(rt);
-	int ifu=init_functions(ctx);
-	if (ifu != 0) return -1;
-
-	int init=aijsondb_index(ctx);
-	if (init != 0) return -1;
-
-	{
-		std::string query_str(query);
-		JSValue jsv = JS_Eval(ctx, query_str.c_str(),query_str.size(), "<query>", JS_EVAL_TYPE_GLOBAL);
-		//int32_t int_result;
-		//JS_ToInt32(ctx, &int_result, jsv);
-		//printf("ih==%d\n", int_result);
-		if (JS_IsException(jsv)) {
-			js_error_message(ctx, jsv, buffer, nbuffer);
-			printf("%s\n", buffer);
-			JS_FreeValue(ctx, jsv);
-			JS_FreeContext(ctx);
-			JS_FreeRuntime(rt);
-			return -1;
-		}
-		else {
-			JS_FreeValue(ctx, jsv);
-		}
-	}
-
-	{
-		const char* eres = "JSON.stringify(result)";
-		JSValue jsv = JS_Eval(ctx,eres, strlen(eres), "<result>", JS_EVAL_TYPE_GLOBAL);
-		if (JS_IsException(jsv)) {
-			js_error_message(ctx, jsv, buffer, nbuffer);
-			JS_FreeValue(ctx, jsv);
-			JS_FreeContext(ctx);
-			JS_FreeRuntime(rt);
-			return -1;
-		}
-		else {
-			const char* jsh = JS_ToCString(ctx, jsv);
-			//printf("GGGGGG\n");
-			//printf("%s\n", jsh);
-			buffer[0] = '\0';
-			if (strlen(jsh) < nbuffer - 1) {
-				strcpy(buffer, jsh);
-			}
-			else
-			{
-				//printf("Buffer too small for result\n");
-			}
-			JS_FreeValue(ctx, jsv);
-			JS_FreeCString(ctx, jsh);
-		}
-	}
-	//printf("Hello vor Ende\n");
-	JS_FreeContext(ctx);
-	JS_FreeRuntime(rt);
-	return 0;
 }
 
 
@@ -806,130 +523,3 @@ int init_functions(JSContext* ctx)
 	return 0;
 }
 
-
-int aijsondb_query_test()
-{
-	aijsondb_load_data("C:/NHKI/aijsondb/data/500 KB_V2.json", "C:/NHKI/aijsondb/data/employeeSchemaDescription_V2.json");
-	{
-	  std::cout << "buckets: " << jobject_cache.size() << std::endl;
-	  std::cout << "employees" << jobject_cache["employees"].size() << std::endl;
-	  std::cout << "employe[100]" << jobject_cache["employees"][100] << std::endl;
-	}
-	{
-		std::lock_guard<std::mutex> lock(mtx);
-
-//		jobject_cache["employees"] = { "{\"id\":\"E0001\",\"name\":\"Berta\"}" };
-
-		JSRuntime* rt;
-		JSContext* ctx;
-		rt = JS_NewRuntime();
-		ctx = JS_NewCustomContext(rt);
-		const int nbuffer = 1024 * 10;
-		char buffer[nbuffer];
-		//printf("%s\n", aijsondb_data);
-
-		init_functions(ctx);
-
-		{
-			std::string query = "aijsondb_buckets()";
-			JSValue jsv = JS_Eval(ctx, query.c_str(), query.size(), "<test>", JS_EVAL_TYPE_GLOBAL);
-			//int32_t int_result;
-			//JS_ToInt32(ctx, &int_result, jsv);
-			//printf("ih==%d\n", int_result);
-			if (JS_IsException(jsv)) {
-				js_error_message(ctx, jsv, buffer, nbuffer);
-				JS_FreeValue(ctx, jsv);
-				JS_FreeContext(ctx);
-				JS_FreeRuntime(rt);
-				return -1;
-			}
-			else {
-				JSValue jsonh = JS_JSONStringify(ctx, jsv, JS_UNDEFINED, JS_UNDEFINED);
-				const char* jsh = JS_ToCString(ctx,jsonh);
-				printf("%s\n", jsh);
-				JS_FreeCString(ctx, jsh);
-				JS_FreeValue(ctx, jsonh);
-				JS_FreeValue(ctx, jsv);
-			}
-		}
-
-		{
-			std::string query = "aijsondb_bucket_length('employees')";
-			JSValue jsv = JS_Eval(ctx, query.c_str(), query.size(), "<test>", JS_EVAL_TYPE_GLOBAL);
-			//int32_t int_result;
-			//JS_ToInt32(ctx, &int_result, jsv);
-			//printf("ih==%d\n", int_result);
-			if (JS_IsException(jsv)) {
-				js_error_message(ctx, jsv, buffer, nbuffer);
-				JS_FreeValue(ctx, jsv);
-				JS_FreeContext(ctx);
-				JS_FreeRuntime(rt);
-				return -1;
-			}
-			else {
-				int32_t int_result=0;
-				int ih=JS_ToInt32(ctx,&int_result, jsv);
-				printf("%d\n", int_result);
-				JS_FreeValue(ctx, jsv);
-			}
-		}
-	
-
-		{
-			std::string query = "aijsondb_bucket_object('employees',0)";
-			JSValue jsv = JS_Eval(ctx, query.c_str(), query.size(), "<test>", JS_EVAL_TYPE_GLOBAL);
-			//int32_t int_result;
-			//JS_ToInt32(ctx, &int_result, jsv);
-			//printf("ih==%d\n", int_result);
-			if (JS_IsException(jsv)) {
-				js_error_message(ctx, jsv, buffer, nbuffer);
-				JS_FreeValue(ctx, jsv);
-				JS_FreeContext(ctx);
-				JS_FreeRuntime(rt);
-				return -1;
-			}
-			else {
-				JSValue jsonh = JS_JSONStringify(ctx, jsv, JS_UNDEFINED, JS_UNDEFINED);
-				const char* jsh = JS_ToCString(ctx, jsonh);
-				printf("%s\n", jsh);
-				JS_FreeCString(ctx, jsh);
-				JS_FreeValue(ctx, jsonh);
-				JS_FreeValue(ctx, jsv);
-			}
-		}
-
-		{
-			std::string query = "aijsondb_schema()";
-			JSValue jsv = JS_Eval(ctx, query.c_str(), query.size(), "<test>", JS_EVAL_TYPE_GLOBAL);
-			//int32_t int_result;
-			//JS_ToInt32(ctx, &int_result, jsv);
-			//printf("ih==%d\n", int_result);
-			if (JS_IsException(jsv)) {
-				js_error_message(ctx, jsv, buffer, nbuffer);
-				JS_FreeValue(ctx, jsv);
-				JS_FreeContext(ctx);
-				JS_FreeRuntime(rt);
-				return -1;
-			}
-			else {
-				JSValue jsonh = JS_JSONStringify(ctx, jsv, JS_UNDEFINED, JS_UNDEFINED);
-				const char* jsh = JS_ToCString(ctx, jsonh);
-				printf("%s\n", jsh);
-				JS_FreeCString(ctx, jsh);
-				JS_FreeValue(ctx, jsonh);
-				JS_FreeValue(ctx, jsv);
-			}
-		}
-
-		//printf("Hello vor Ende\n");
-		JS_FreeContext(ctx);
-		JS_FreeRuntime(rt);
-	}
-
-	{
-		const int nbuffer = 1024;
-		char buffer[nbuffer];
-		aijsondb_query("let result=data.employees.length;", buffer, nbuffer);
-	}
-	return 0;
-}
