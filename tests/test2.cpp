@@ -93,14 +93,14 @@ bool getHeaders2(XLWorksheet& ws, std::map<int, std::vector<std::string>>& heade
     std::vector<std::string> headerRowMax;
     size_t irow = 0;
 	size_t irowHeader=-1;
-    for (auto row : ws.rows())
+    for (auto& row : ws.rows())
     {
         bool isHeader = false;
         std::vector<std::string> headerRow;
         int icollast = -1;
         int icolFirstEmpty = -1;
         int icell = 0;
-        for (auto cell : std::vector<XLCellValue>(row.values()))
+        for (auto& cell : std::vector<XLCellValue>(row.values()))
         {
             
             if (cell.type() == OpenXLSX::XLValueType::String)
@@ -403,7 +403,7 @@ int test_mona()
     jsoncons::json j(jsoncons::json_array_arg);
     std::clog << "Processing spread sheet" << std::endl;
     bool schemaCreated = false;
-    for (auto row : ws.rows())
+    for (auto& row : ws.rows())
     {
         if (isBefore(headers, irow))
         {
@@ -432,7 +432,7 @@ int test_mona()
         std::vector<std::string> headerRow = getHeaderForRow(headers, irow);
         jsoncons::json jrow;
         int icell = 1;
-        for (auto cell : std::vector<XLCellValue>(row.values()))
+        for (auto& cell : std::vector<XLCellValue>(row.values()))
         {
             if (icell - 1 < headerRow.size())
             {
