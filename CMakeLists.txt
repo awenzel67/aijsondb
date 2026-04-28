@@ -10,7 +10,9 @@ endif()
 set(ENV{TEST_DOMINO_DATA} ${PROJECT_SOURCE_DIR}/data)
 message($ENV{TEST_DOMINO_DATA})
 
-include_directories(${PROJECT_SOURCE_DIR}/aijsondb  ${PROJECT_SOURCE_DIR}/third_party/quickjs-ng ${PROJECT_SOURCE_DIR}/third_party/jsoncons/include)
+set (XINTL_DIR C:/Del/Excel/xlnt/build/installed/include)
+
+include_directories(${PROJECT_SOURCE_DIR}/aijsondb  ${PROJECT_SOURCE_DIR}/third_party/quickjs-ng ${PROJECT_SOURCE_DIR}/third_party/jsoncons/include ${XINTL_DIR})
 
 add_executable(aijsondbcli)
 
@@ -40,15 +42,18 @@ FetchContent_MakeAvailable(Catch2)
 
 add_executable(tests)
 
+set (PROJECT_LINK_LIBS xlntd.lib  )
+set (PROJECT_LINK_DIR C:/Del/Excel/xlnt/build/installed/lib)
+
 target_sources(tests
   PRIVATE
     tests/test.cpp
     aijsondb/aijsondblib.cpp
      aijsondb/aijsondbindex.cpp
     third_party/quickjs-ng/quickjs-amalgam.c
- "aijsondb/aijsondbresolver.cpp")
+ "aijsondb/aijsondbresolver.cpp" "tests/test2.cpp")
 target_compile_definitions(tests PUBLIC TEST_DATA_DIR="${CMAKE_CURRENT_SOURCE_DIR}/data/")
-target_link_libraries(tests PRIVATE Catch2::Catch2WithMain)
+target_link_libraries(tests PRIVATE Catch2::Catch2WithMain ${PROJECT_LINK_DIR}/${PROJECT_LINK_LIBS})
 
 list(APPEND CMAKE_MODULE_PATH ${catch2_SOURCE_DIR}/extras)
 include(CTest)

@@ -7,6 +7,7 @@
 #include "../aijsondb/aijsondbresolver.h"
 #include <sstream>
 
+
 const char* test_data_dir()
 {
 	return TEST_DATA_DIR;
@@ -71,6 +72,36 @@ TEST_CASE("Test Domino query bucket array", "[domino]") {
 	{
 		jsoncons::json j = jsoncons::json::parse(sres);
 		REQUIRE(j.size()==201);
+	}
+	catch (const std::exception& e)
+	{
+		std::cerr << "Failed to parse JSON: " << e.what() << std::endl;
+		FAIL("JSON parsing failed");
+	}
+	delete buffer;
+}
+
+const char* query_test4 = "var result=data.KitalisteVer_ffentlichung.length";
+TEST_CASE("Test Domino query excel", "[domino]") {
+	std::string path_data = test_data_dir();
+	path_data += "500 KB_V3.json";
+	std::string path_schema = test_data_dir();
+	path_schema += "employeeSchemaDescription_V3.json";
+	std::string pd = "C:/del/output_utf8.json";
+	std::string ps = "C:/del/output_utf8_schema.json";
+	int res = aijsondb_load_data(pd.c_str(), ps.c_str());
+	REQUIRE(res == 0);
+	const int nbuffer = 1024 * 1000;
+	char* buffer = new char[nbuffer];
+	res = aijsondb_query(query_test4, buffer, nbuffer);
+	std::cout << "Query result: " << buffer << std::endl;
+	REQUIRE(res == 0);
+	std::string sres(buffer);
+	try
+	{
+		jsoncons::json j = jsoncons::json::parse(sres);
+		int count = j.as_integer<int>();
+		REQUIRE(count == 2917);
 	}
 	catch (const std::exception& e)
 	{
@@ -476,6 +507,12 @@ TEST_CASE("Test aijsondb serialize undefined", "[domino]") {
 	}
 	JS_FreeContext(ctx);
 	JS_FreeRuntime(rt);
+}
+
+int test_mona();
+
+TEST_CASE("Test aijsondb read excel", "[domino]") {
+    test_mona();
 }
 
 #if false
