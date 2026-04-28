@@ -1,3 +1,20 @@
+#include <OpenXLSX.hpp>
+#include <iostream>
+#include <map>
+#include <string>
+#include <vector>
+#include <jsoncons/json.hpp>
+#include <iostream>
+#include <fstream>
+#include <codecvt>
+#include <locale>
+#include <set>
+#include <chrono>
+#include <map>
+
+using namespace std;
+using namespace OpenXLSX;
+#if false
 #include <xlnt/xlnt.hpp>
 
 #include <iostream>
@@ -66,8 +83,9 @@ bool getHeaders(xlnt::worksheet& ws, std::map<int, std::vector<std::string>>& he
     std::clog << "Processing complete" << std::endl;
 	return true;
 }
+#endif
 
-bool getHeaders2(xlnt::worksheet& ws, std::map<int, std::vector<std::string>>& headers)
+bool getHeaders2(XLWorksheet& ws, std::map<int, std::vector<std::string>>& headers)
 {
     //std::map<int, std::vector<std::string>> headers;
     std::clog << "Processing spread sheet" << std::endl;
@@ -75,22 +93,23 @@ bool getHeaders2(xlnt::worksheet& ws, std::map<int, std::vector<std::string>>& h
     std::vector<std::string> headerRowMax;
     size_t irow = 0;
 	size_t irowHeader=-1;
-    for (auto row : ws.rows(false))
+    for (auto row : ws.rows())
     {
         bool isHeader = false;
         std::vector<std::string> headerRow;
         int icollast = -1;
         int icolFirstEmpty = -1;
-        for (auto cell : row)
+        int icell = 0;
+        for (auto cell : std::vector<XLCellValue>(row.values()))
         {
-            int icell = cell.column_index();
-            if (cell.data_type() == xlnt::cell_type::inline_string || cell.data_type() == xlnt::cell_type::shared_string)
+            
+            if (cell.type() == OpenXLSX::XLValueType::String)
             {
                 //std::clog << cell.to_string() << std::endl;
-                headerRow.push_back(cell.to_string());
+                headerRow.push_back(cell.getString());
                 icollast = icell;
             }
-            else if (cell.data_type() == xlnt::cell_type::empty)
+            else if (cell.type() == OpenXLSX::XLValueType::Empty)
             {
                 if (icolFirstEmpty == -1) {
                     icolFirstEmpty = icell;
@@ -117,7 +136,6 @@ bool getHeaders2(xlnt::worksheet& ws, std::map<int, std::vector<std::string>>& h
     std::clog << "Processing complete" << std::endl;
     return true;
 }
-
 
 bool isHeaders(std::map<int, std::vector<std::string>>& headers,int irow)
 {
@@ -225,7 +243,7 @@ std::string to_js_name(const std::string& label)
     std::wstring wjsname = to_wstring(label);
     return to_js_name_w(wjsname);
 }
-
+#if false
 int test_mona()
 {
     xlnt::workbook wb;
@@ -341,6 +359,127 @@ int test_mona()
         std::string utf8Text = js.to_string();
         outFile.write(utf8Text.c_str(), utf8Text.size());
     }
+    std::clog << "Processing complete" << std::endl;
+    return 0;
+}
+#endif
+int test_mona()
+{
+    XLDocument doc;
+    //doc.create("./Demo01.xlsx", XLForceOverwrite);
+    std::string filename = "kitaliste-nov-2025.xlsx";
+    auto start = std::chrono::high_resolution_clock::now();
+    doc.open("C:/NHKI/data/talktodataexcel/" + filename);
+    auto ws = doc.workbook().worksheet(1);
+    std::string sschema = R"(
+    {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "$id" : "https://example.com/product.schema.json",
+            "title" : "Product",
+            "description" : "",
+            "type" : "object",
+            "properties": {}
+    }
+    )";
+
+    jsoncons::json js = jsoncons::json::parse(sschema);
+    filename.replace(filename.find(".xlsx"), 5, "");
+    auto jsfilename = to_js_name(filename);
+    js["title"] = filename;
+    std::string sheetlabel = ws.name();
+    std::string sheetname = to_js_name(sheetlabel);
+    js["properties"][sheetname] = jsoncons::json::object();
+    js["properties"][sheetname]["type"] = "array";
+    js["properties"][sheetname]["description"] = "Array of: " + sheetlabel;
+    js["properties"][sheetname]["items"] = jsoncons::json::object();
+    js["properties"][sheetname]["items"]["type"] = "object";
+    js["properties"][sheetname]["items"]["description"] = sheetlabel;
+    js["properties"][sheetname]["items"]["properties"] = jsoncons::json::object();
+    auto jsArrayRow = jsoncons::json::object();
+    std::map<int, std::vector<std::string>> headers;
+    getHeaders2(ws, headers);
+    int irow = 0;
+    jsoncons::json jsbucket = jsoncons::json::object();
+    jsoncons::json j(jsoncons::json_array_arg);
+    std::clog << "Processing spread sheet" << std::endl;
+    bool schemaCreated = false;
+    for (auto row : ws.rows())
+    {
+        if (isBefore(headers, irow))
+        {
+            irow++;
+            continue;
+        }
+
+        bool isHeader = isHeaders(headers, irow);
+        if (isHeader)
+        {
+            if (!schemaCreated) {
+                std::vector<std::string> headerRow = getHeaderForRow(headers, irow);
+                for (size_t i = 0; i < headerRow.size(); i++)
+                {
+                    std::string headerLabel = headerRow[i];
+                    std::string header = to_js_name(headerRow[i]);
+                    js["properties"][sheetname]["items"]["properties"][header] = jsoncons::json::object();
+                    js["properties"][sheetname]["items"]["properties"][header]["type"] = "string";
+                    js["properties"][sheetname]["items"]["properties"][header]["description"] = headerLabel;
+                }
+                schemaCreated = true;
+            }
+            irow++;
+            continue;
+        }
+        std::vector<std::string> headerRow = getHeaderForRow(headers, irow);
+        jsoncons::json jrow;
+        int icell = 1;
+        for (auto cell : std::vector<XLCellValue>(row.values()))
+        {
+            if (icell - 1 < headerRow.size())
+            {
+                std::string headerLabel = headerRow[icell - 1];
+                std::string header = to_js_name(headerLabel);
+                jrow[header] = cell.getString();
+            }
+            //std::clog << cell.to_string() << std::endl;
+            icell++;
+        }
+        j.push_back(jrow);
+        irow++;
+        //if (irow > 100)
+        //{
+        //    break;
+        //}
+    }
+
+    //std::clog << j.to_string() << std::endl;
+
+
+    // Optional: Write UTF-8 BOM (Byte Order Mark) if needed for Windows apps like Notepad
+    // unsigned char bom[] = {0xEF, 0xBB, 0xBF};
+    // outFile.write(reinterpret_cast<char*>(bom), sizeof(bom));
+
+    // Write UTF-8 text
+
+    {
+        jsbucket[sheetname] = j;
+        std::ofstream outFile("C:/del/output_utf8.json", std::ios::binary);
+        if (!outFile) {
+            throw std::runtime_error("Failed to open file for writing.");
+        }
+        std::string utf8Text = jsbucket.to_string();
+        outFile.write(utf8Text.c_str(), utf8Text.size());
+    }
+    {
+        std::ofstream outFile("C:/del/output_utf8_schema.json", std::ios::binary);
+        if (!outFile) {
+            throw std::runtime_error("Failed to open file for writing.");
+        }
+        std::string utf8Text = js.to_string();
+        outFile.write(utf8Text.c_str(), utf8Text.size());
+    }
+    auto stop = std::chrono::high_resolution_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::microseconds>(stop - start);
+    std::cout << "Time taken: " << duration.count() * 1.0 / 1000.0 / 1000.0 << " microseconds" << std::endl;
     std::clog << "Processing complete" << std::endl;
     return 0;
 }
