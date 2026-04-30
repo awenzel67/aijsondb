@@ -5,7 +5,10 @@
 #include <jsoncons_ext/jsonschema/jsonschema.hpp>
 #include "quickjs.h"
 #include "../aijsondb/aijsondbresolver.h"
+#include "../aijsondbexcel/aijsondbimportexcel.h"
 #include <sstream>
+#include <filesystem>
+#include <memory>
 
 
 const char* test_data_dir()
@@ -110,6 +113,51 @@ TEST_CASE("Test Domino query excel", "[domino]") {
 	}
 	delete buffer;
 }
+
+
+TEST_CASE("Test Domino query excel load", "[domino]") {
+	IBulkImporter* o= new ExcelImporter();
+	std::unique_ptr<IBulkImporter> op(o);
+	register_importer(op);
+	std::string path_data = test_data_dir();
+	path_data += "500 KB_V3.json";
+	std::string path_schema = test_data_dir();
+	path_schema += "employeeSchemaDescription_V3.json";
+	std::string pd = "C:/del/output2_utf8.json";
+	if (std::filesystem::exists(pd))
+	{
+		std::filesystem::remove(pd);
+	}
+	std::string ps = "C:/del/output2_utf8_schema.json";
+	if (std::filesystem::exists(ps))
+	{
+		std::filesystem::remove(ps);
+	}
+
+	std::string filename = "kitaliste-nov-2025.xlsx";
+	std::string pathk="C:/NHKI/data/talktodataexcel/" + filename;
+	int res = aijsondb_load_data_with_cache(pathk.c_str(),pd.c_str(), ps.c_str());
+	REQUIRE(res == 0);
+	const int nbuffer = 1024 * 1000;
+	char* buffer = new char[nbuffer];
+	res = aijsondb_query(query_test4, buffer, nbuffer);
+	std::cout << "Query result: " << buffer << std::endl;
+	REQUIRE(res == 0);
+	std::string sres(buffer);
+	try
+	{
+		jsoncons::json j = jsoncons::json::parse(sres);
+		int count = j.as_integer<int>();
+		REQUIRE(count == 2917);
+	}
+	catch (const std::exception& e)
+	{
+		std::cerr << "Failed to parse JSON: " << e.what() << std::endl;
+		FAIL("JSON parsing failed");
+	}
+	delete buffer;
+}
+
 
 
 TEST_CASE("Test Domino No Load Data", "[domino]") {
@@ -511,9 +559,11 @@ TEST_CASE("Test aijsondb serialize undefined", "[domino]") {
 
 int test_mona();
 
+/*
 TEST_CASE("Test aijsondb read excel", "[domino]") {
     test_mona();
 }
+*/
 
 #if false
 int aijsondb_query_test()

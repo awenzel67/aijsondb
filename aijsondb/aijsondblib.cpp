@@ -8,11 +8,15 @@
 #include <jsoncons/json.hpp>
 #include <jsoncons_ext/jsonschema/jsonschema.hpp>
 #include <fstream>
+#include "aijsondbimporter.hpp"
 #include "aijsondblib.h"
 #include "quickjs.h"
 #include "quickjs-libc.h"
 #include "aijsondbindex.h"
 #include "aijsondbresolver.h"
+#include "aijsondbloadwithimporter.h"
+#include <filesystem>
+
 
 static JSContext* JS_NewCustomContext(JSRuntime* rt)
 {
@@ -26,6 +30,16 @@ std::mutex mtx;
 static std::map<std::string, std::vector<std::string>> jobject_cache;
 static std::string jobject_cache_schema;
 static std::string last_error_message;
+
+std::map<std::string, std::vector<std::string>>* get_object_cache() {
+	return &jobject_cache;
+}
+
+std::string* get_jobject_cache_schema()
+{
+	return &jobject_cache_schema;
+}
+
 
 int aijsondb_free_data()
 {
@@ -58,6 +72,108 @@ int aijsondb_load_data(const char* filepath_data,const char* filepath_schema)
 	return load_cache_and_validate(filepath_data);
 	//printf("Data loaded successfully:\n%s\n", domino_data);
 }
+
+int aijsondb_save_data(const char* filepath_data)
+{
+		//std::lock_guard<std::mutex> lock(mtx);
+		if (std::filesystem::exists(filepath_data)) {
+			last_error_message = "File already exists: ";
+			last_error_message.append(filepath_data);
+			return -1;
+		}
+
+
+		std::ofstream file(filepath_data, std::ios::out | std::ios::binary);
+		if (!file) {
+			last_error_message = "Error opening schema file";
+			return -1;
+		}
+		file << "{";
+		for (auto kv : jobject_cache){
+			file << "\"" << kv.first << "\" : [" << "\n";
+			size_t i=0;
+			for (auto entity : kv.second)
+			{
+				file << entity;
+				if (i + 1 < kv.second.size())
+				{
+					file << ",";
+				}
+				file << "\n";
+				i++;
+			}
+			file << "]" << "\n";
+	    }
+		file << "}";
+		file.close();
+		return 0;
+	//printf("Data loaded successfully:\n%s\n", domino_data);
+}
+
+int aijsondb_load_data_with_cache(
+	const char* filename,
+	const char* json_filename,
+	const char* schema
+) {
+
+	if (std::filesystem::exists(json_filename))
+		return aijsondb_load_data(json_filename, schema);
+
+	if (!std::filesystem::exists(filename)) {
+		last_error_message = "File does not exists: ";
+		last_error_message.append(filename);
+		return -1;
+	}
+
+	if (std::filesystem::exists(json_filename)) {
+		last_error_message = "JSON data file alread exists: ";
+		last_error_message.append(json_filename);
+		return -1;
+	}
+
+	if (std::filesystem::exists(schema)) {
+		last_error_message = "JSON schema file alread exists: ";
+		last_error_message.append(schema);
+		return -1;
+	}
+
+	std::filesystem::path fpx(filename);
+	std::string ext = fpx.extension().string();
+	IBulkImporter* importer = get_importer(ext);
+	if (importer == nullptr)
+	{
+		last_error_message = "No importer for: ";
+		last_error_message.append(filename);
+		return -1;
+	}
+
+
+
+    std::string error;
+	if (!importer->import(filename, jobject_cache, jobject_cache_schema, error))
+	{
+		last_error_message = error;
+		return -1;
+	}
+
+	if (aijsondb_save_data(json_filename) != 0)
+		return -1;
+
+
+	std::ofstream file(schema, std::ios::out | std::ios::binary);
+	if (!file) {
+		last_error_message = "Error opening schema file";
+		return -1;
+	}
+	
+	file << jobject_cache_schema;
+
+	file.close();
+
+	return 0;
+}
+
+
 
 
 int init_functions(JSContext* ctx);
@@ -523,3 +639,38 @@ int init_functions(JSContext* ctx)
 	return 0;
 }
 
+std::mutex mtx_importer;
+static std::map<std::string,std::unique_ptr<IBulkImporter>> importers;
+
+bool register_importer(std::unique_ptr<IBulkImporter>& importer) {
+	
+	std::lock_guard<std::mutex> lock(mtx_importer);
+
+	if (importer == nullptr)
+		return false;
+
+	std::string ending = importer->ending();
+	if (ending.size() == 0)
+		return false;
+	importers[ending] = std::move(importer);
+	return true;
+}
+
+IBulkImporter* get_importer(const std::string& ending)
+{
+	std::lock_guard<std::mutex> lock(mtx_importer);
+	if (ending.size() == 0)
+		return nullptr;
+
+	auto ef = importers.find(ending);
+	if (ef == importers.end())
+		return nullptr;
+	IBulkImporter* hl= ef->second.get();
+	return hl;
+}
+
+void clear_importer(std::unique_ptr<IBulkImporter>& importer) {
+
+	std::lock_guard<std::mutex> lock(mtx_importer);
+	importers.clear();
+}
