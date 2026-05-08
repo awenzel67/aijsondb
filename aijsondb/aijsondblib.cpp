@@ -88,6 +88,8 @@ int aijsondb_save_data(const char* filepath_data)
 			last_error_message = "Error opening schema file";
 			return -1;
 		}
+		size_t ibucket = 0;
+		size_t nbucket=jobject_cache.size();
 		file << "{";
 		for (auto kv : jobject_cache){
 			file << "\"" << kv.first << "\" : [" << "\n";
@@ -102,7 +104,15 @@ int aijsondb_save_data(const char* filepath_data)
 				file << "\n";
 				i++;
 			}
-			file << "]" << "\n";
+			if (ibucket + 1 < nbucket)
+			{
+				file << "]," << "\n";
+			}
+			else
+			{
+				file << "]" << "\n";
+			}
+			ibucket++;
 	    }
 		file << "}";
 		file.close();

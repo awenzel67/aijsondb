@@ -24,7 +24,7 @@ endif()
 set(ENV{TEST_DOMINO_DATA} ${PROJECT_SOURCE_DIR}/data)
 message($ENV{TEST_DOMINO_DATA})
 
-include_directories(${PROJECT_SOURCE_DIR}/aijsondb  ${PROJECT_SOURCE_DIR}/third_party/quickjs-ng ${PROJECT_SOURCE_DIR}/third_party/jsoncons/include)
+include_directories(${PROJECT_SOURCE_DIR}/aijsondb  ${PROJECT_SOURCE_DIR}/third_party/quickjs-ng ${PROJECT_SOURCE_DIR}/third_party/jsoncons/include ${PROJECT_SOURCE_DIR}/third_party/bw-tempdir)
 
 
 add_library( 
@@ -74,6 +74,7 @@ add_executable(aijsontests)
 target_sources(aijsontests
   PRIVATE
     tests/test.cpp
+    tests/testxlsx.cpp
     aijsondb/aijsondblib.cpp
      aijsondb/aijsondbindex.cpp
     third_party/quickjs-ng/quickjs-amalgam.c

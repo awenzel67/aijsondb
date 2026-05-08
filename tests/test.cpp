@@ -114,7 +114,7 @@ TEST_CASE("Test Domino query excel", "[domino]") {
 	delete buffer;
 }
 
-
+#if false
 TEST_CASE("Test Domino query excel load", "[domino]") {
 	IBulkImporter* o= new ExcelImporter();
 	std::unique_ptr<IBulkImporter> op(o);
@@ -157,8 +157,7 @@ TEST_CASE("Test Domino query excel load", "[domino]") {
 	}
 	delete buffer;
 }
-
-
+#endif
 
 TEST_CASE("Test Domino No Load Data", "[domino]") {
 	std::string path_data = test_data_dir();
@@ -564,132 +563,3 @@ TEST_CASE("Test aijsondb read excel", "[domino]") {
     test_mona();
 }
 */
-
-#if false
-int aijsondb_query_test()
-{
-	aijsondb_load_data("C:/NHKI/aijsondb/data/500 KB_V2.json", "C:/NHKI/aijsondb/data/employeeSchemaDescription_V2.json");
-	{
-		std::cout << "buckets: " << jobject_cache.size() << std::endl;
-		std::cout << "employees" << jobject_cache["employees"].size() << std::endl;
-		std::cout << "employe[100]" << jobject_cache["employees"][100] << std::endl;
-	}
-	{
-		std::lock_guard<std::mutex> lock(mtx);
-
-		//		jobject_cache["employees"] = { "{\"id\":\"E0001\",\"name\":\"Berta\"}" };
-
-		JSRuntime* rt;
-		JSContext* ctx;
-		rt = JS_NewRuntime();
-		ctx = JS_NewCustomContext(rt);
-		const int nbuffer = 1024 * 10;
-		char buffer[nbuffer];
-		//printf("%s\n", aijsondb_data);
-
-		init_functions(ctx);
-
-		{
-			std::string query = "aijsondb_buckets()";
-			JSValue jsv = JS_Eval(ctx, query.c_str(), query.size(), "<test>", JS_EVAL_TYPE_GLOBAL);
-			//int32_t int_result;
-			//JS_ToInt32(ctx, &int_result, jsv);
-			//printf("ih==%d\n", int_result);
-			if (JS_IsException(jsv)) {
-				js_error_message(ctx, jsv, buffer, nbuffer);
-				JS_FreeValue(ctx, jsv);
-				JS_FreeContext(ctx);
-				JS_FreeRuntime(rt);
-				return -1;
-			}
-			else {
-				JSValue jsonh = JS_JSONStringify(ctx, jsv, JS_UNDEFINED, JS_UNDEFINED);
-				const char* jsh = JS_ToCString(ctx, jsonh);
-				printf("%s\n", jsh);
-				JS_FreeCString(ctx, jsh);
-				JS_FreeValue(ctx, jsonh);
-				JS_FreeValue(ctx, jsv);
-			}
-		}
-
-		{
-			std::string query = "aijsondb_bucket_length('employees')";
-			JSValue jsv = JS_Eval(ctx, query.c_str(), query.size(), "<test>", JS_EVAL_TYPE_GLOBAL);
-			//int32_t int_result;
-			//JS_ToInt32(ctx, &int_result, jsv);
-			//printf("ih==%d\n", int_result);
-			if (JS_IsException(jsv)) {
-				js_error_message(ctx, jsv, buffer, nbuffer);
-				JS_FreeValue(ctx, jsv);
-				JS_FreeContext(ctx);
-				JS_FreeRuntime(rt);
-				return -1;
-			}
-			else {
-				int32_t int_result = 0;
-				int ih = JS_ToInt32(ctx, &int_result, jsv);
-				printf("%d\n", int_result);
-				JS_FreeValue(ctx, jsv);
-			}
-		}
-
-
-		{
-			std::string query = "aijsondb_bucket_object('employees',0)";
-			JSValue jsv = JS_Eval(ctx, query.c_str(), query.size(), "<test>", JS_EVAL_TYPE_GLOBAL);
-			//int32_t int_result;
-			//JS_ToInt32(ctx, &int_result, jsv);
-			//printf("ih==%d\n", int_result);
-			if (JS_IsException(jsv)) {
-				js_error_message(ctx, jsv, buffer, nbuffer);
-				JS_FreeValue(ctx, jsv);
-				JS_FreeContext(ctx);
-				JS_FreeRuntime(rt);
-				return -1;
-			}
-			else {
-				JSValue jsonh = JS_JSONStringify(ctx, jsv, JS_UNDEFINED, JS_UNDEFINED);
-				const char* jsh = JS_ToCString(ctx, jsonh);
-				printf("%s\n", jsh);
-				JS_FreeCString(ctx, jsh);
-				JS_FreeValue(ctx, jsonh);
-				JS_FreeValue(ctx, jsv);
-			}
-		}
-
-		{
-			std::string query = "aijsondb_schema()";
-			JSValue jsv = JS_Eval(ctx, query.c_str(), query.size(), "<test>", JS_EVAL_TYPE_GLOBAL);
-			//int32_t int_result;
-			//JS_ToInt32(ctx, &int_result, jsv);
-			//printf("ih==%d\n", int_result);
-			if (JS_IsException(jsv)) {
-				js_error_message(ctx, jsv, buffer, nbuffer);
-				JS_FreeValue(ctx, jsv);
-				JS_FreeContext(ctx);
-				JS_FreeRuntime(rt);
-				return -1;
-			}
-			else {
-				JSValue jsonh = JS_JSONStringify(ctx, jsv, JS_UNDEFINED, JS_UNDEFINED);
-				const char* jsh = JS_ToCString(ctx, jsonh);
-				printf("%s\n", jsh);
-				JS_FreeCString(ctx, jsh);
-				JS_FreeValue(ctx, jsonh);
-				JS_FreeValue(ctx, jsv);
-			}
-		}
-
-		//printf("Hello vor Ende\n");
-		JS_FreeContext(ctx);
-		JS_FreeRuntime(rt);
-	}
-
-	{
-		const int nbuffer = 1024;
-		char buffer[nbuffer];
-		aijsondb_query("let result=data.employees.length;", buffer, nbuffer);
-	}
-	return 0;
-}
-#endif

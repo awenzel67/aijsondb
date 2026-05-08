@@ -7,7 +7,6 @@ int aijsondb_save_data(const char* filepath_data);
 int aijsondb_query(const char* query, char* buffer, int nbuffer);
 int aijsondb_free_data();
 const char* aijsondb_last_error();
-int aijsondb_query_test();
 int load_cache(const char* filepath);
 const char* get_bucket_object(const char* name,int index);
 const char* get_bucket_name_from_index(int index);
