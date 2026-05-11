@@ -46,15 +46,26 @@ E_EXCEL_LOGICAL_TYPE get_logical_type(XLDocument& doc,OpenXLSX::XLCell& cell)
 
     try {
 
+        bool isTime = false;
+		bool isDate = false;
         auto format = cell.cellFormat();
-        auto mystyles = doc.styles();
-        auto ff = mystyles.cellFormats()[format];
+        auto& mystyles = doc.styles();
+        auto& ff = mystyles.cellFormats()[format];
         auto nf = ff.numberFormatId();
-        auto mynf = mystyles.numberFormats();
-        auto sfm = mynf.numberFormatById(nf);
-        auto code = sfm.formatCode();
-        bool isTime = (code.find("hh") != std::string::npos) || (code.find("HH") != std::string::npos) || (code.find("h") != std::string::npos) || (code.find("H") != std::string::npos);
-        bool isDate = (code.find("dd") != std::string::npos) || (code.find("DD") != std::string::npos) || (code.find("yy") != std::string::npos) || (code.find("yy") != std::string::npos);
+        auto& mynf = mystyles.numberFormats();
+        for (size_t index = 0; index < mynf.count(); ++index) {
+			    auto& sfm = mynf.numberFormatByIndex(index);
+                if (sfm.numberFormatId() == nf)
+                {
+
+                    //auto sfm = mynf.numberFormatById(nf);
+                    auto code = sfm.formatCode();
+                    isTime = (code.find("hh") != std::string::npos) || (code.find("HH") != std::string::npos) || (code.find("h") != std::string::npos) || (code.find("H") != std::string::npos);
+                    isDate = (code.find("dd") != std::string::npos) || (code.find("DD") != std::string::npos) || (code.find("yy") != std::string::npos) || (code.find("yy") != std::string::npos);
+                }
+        }
+        
+
         bool isInteger = cellValueType == OpenXLSX::XLValueType::Integer;
 
         if (isInteger)

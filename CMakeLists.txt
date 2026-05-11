@@ -50,6 +50,7 @@ add_library(
     aijsondbc   SHARED aijsondbc/aijsondbc.cpp aijsondb/aijsondblib.cpp aijsondb/aijsondbindex.cpp third_party/quickjs-ng/quickjs-amalgam.c 
  "aijsondb/aijsondbresolver.cpp" "aijsondb/aijsondbloadwithimporter.cpp")
 
+target_link_libraries(aijsondbc PRIVATE aijsondbexcellib)
 
 
 Include(FetchContent)

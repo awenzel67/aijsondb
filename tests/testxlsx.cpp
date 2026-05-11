@@ -85,6 +85,54 @@ TEST_CASE("Test Domino query excel multiple woksheets", "[domino]") {
 }
 
 
+TEST_CASE("Test Domino query excel real woksheets", "[domino]") {
+	IBulkImporter* o = new ExcelImporter();
+	std::unique_ptr<IBulkImporter> op(o);
+	register_importer(op);
+	TempDir temp_dir;
+
+	std::filesystem::path path_data = temp_dir.path() / "kita_excel.json";
+	std::filesystem::path path_schema = temp_dir.path() / "kita_excel_schema.json";
+
+	//std::string pd = "C:/del/output2_utf8.json";
+	if (std::filesystem::exists(path_data))
+	{
+		std::filesystem::remove(path_data);
+	}
+
+	if (std::filesystem::exists(path_schema))
+	{
+		std::filesystem::remove(path_schema);
+	}
+
+	std::string filename = "kitaliste-nov-2025.xlsx";
+	std::string pathxlsx = "C:/NHKI/data/talktodataexcel";
+	std::string pathk = pathxlsx + "/" + filename;
+	int res = aijsondb_load_data_with_cache(pathk.c_str(), path_data.string().c_str(), path_schema.string().c_str());
+	REQUIRE(res == 0);
+	const int nbuffer = 1024 * 1000;
+	char* buffer = new char[nbuffer];
+	buffer[0] = '\0';
+	const char* qk = "var result=data.KitalisteVer_ffentlichung.length";
+	res = aijsondb_query(qk, buffer, nbuffer);
+	std::cout << "Query result: " << buffer << std::endl;
+	REQUIRE(res == 0);
+	std::string sres2(buffer);
+	try
+	{
+		jsoncons::json j = jsoncons::json::parse(sres2);
+		int count = j.as_integer<int>();
+		REQUIRE(count == 2917);
+	}
+	catch (const std::exception& e)
+	{
+		std::cerr << "Failed to parse JSON: " << e.what() << std::endl;
+		FAIL("JSON parsing failed");
+	}
+
+	delete buffer;
+}
+
 int test_excel(const std::string& xlsx_file, jsoncons::json& jvalue, jsoncons::json& jschema) {
 	IBulkImporter* o = new ExcelImporter();
 	std::unique_ptr<IBulkImporter> op(o);

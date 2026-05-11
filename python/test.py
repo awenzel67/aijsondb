@@ -11,11 +11,11 @@ def query_data_javascript_qj():
     elif system=="Linux":
       libObject=ctypes.CDLL('../build/libaijsondbc.so')
 
-    #cdata = ctypes.c_char_p(b"../data/500 KB_V3.json")
-    #cschema=ctypes.c_char_p(b"../data/employeeSchemaDescription_V3.json")
+    cdata = ctypes.c_char_p(b"../data/500 KB_V3.json")
+    cschema=ctypes.c_char_p(b"../data/employeeSchemaDescription_V3.json")
 
-    cdata = ctypes.c_char_p(b"C:/del/output_utf8.json")
-    cschema=ctypes.c_char_p(b"C:/del/output_utf8_schema.json")
+    #cdata = ctypes.c_char_p(b"C:/del/output_utf8.json")
+    #cschema=ctypes.c_char_p(b"C:/del/output_utf8_schema.json")
 
 
     with open("query_kita.txt", "r", encoding="utf-8") as file:
