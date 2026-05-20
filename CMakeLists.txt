@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.23)
 
 project(aijsondb)
 
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 set(IGNORE_ME ${CMAKE_C_COMPILER}) # Suppress CMake warning message
@@ -31,7 +31,7 @@ add_library(
     aijsondbexcellib   
     STATIC 
     aijsondbexcel/aijsondbimportexcel.cpp
-)
+ "aijsondbexcel/aijsondbimportexcelplus.cpp" "aijsondbexcel/excelhelper.cpp")
 target_link_libraries(aijsondbexcellib PRIVATE OpenXLSX::OpenXLSX)
 target_include_directories(aijsondbexcellib PRIVATE ${OpenXLSX_INCLUDES})
 

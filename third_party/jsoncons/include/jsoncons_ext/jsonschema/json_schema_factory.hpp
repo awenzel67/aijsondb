@@ -1,4 +1,4 @@
-// Copyright 2013-2025 Daniel Parker
+// Copyright 2013-2026 Daniel Parker
 // Distributed under the Boost license, Version 1.0.
 // (See accompanying file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
@@ -11,6 +11,7 @@
 #include <unordered_map>
 
 #include <jsoncons/config/compiler_support.hpp>
+#include <jsoncons/utility/string_utils.hpp>
 
 #include <jsoncons_ext/jsonschema/draft201909/schema_validator_factory_201909.hpp>
 #include <jsoncons_ext/jsonschema/draft202012/schema_validator_factory_202012.hpp>
@@ -27,23 +28,22 @@ namespace jsonschema {
     public:
         using schema_store_type = std::map<jsoncons::uri, schema_validator<Json>*>;
 
-        validator_factory_factory()
-        {
-        }
+        validator_factory_factory() = default;
             
-        std::unique_ptr<schema_validator_factory_base<Json>> operator()(Json sch, 
-            const evaluation_options& options, schema_store_type* schema_store_ptr,
+        std::unique_ptr<schema_validator_factory_base<Json>> operator()(std::unique_ptr<Json>&& root_schema,
+            const evaluation_options& options, 
+            schema_store_type* schema_store_ptr,
             const std::vector<resolve_uri_type<Json>>& resolve_funcs,
             const std::unordered_map<std::string,bool>& vocabulary) const
         {
             std::unique_ptr<schema_validator_factory_base<Json>> factory;
 
-            if (sch.is_object())
+            if (root_schema->is_object())
             {
-                auto it = sch.find("$schema");
-                if (it != sch.object_range().end())
+                auto it = root_schema->find("$schema");
+                if (it != root_schema->object_range().end())
                 { 
-                    factory = get_factory(std::move(sch), (*it).value().as_string_view(), options, schema_store_ptr, resolve_funcs, vocabulary);
+                    factory = get_factory(std::move(root_schema), (*it).value().as_string_view(), options, schema_store_ptr, resolve_funcs, vocabulary);
                     if (!factory)
                     {
                         std::string message("Unsupported schema version ");
@@ -53,12 +53,12 @@ namespace jsonschema {
                 }
                 else 
                 {
-                    factory = get_default_schema_factory(std::move(sch), options, schema_store_ptr, resolve_funcs, vocabulary);
+                    factory = get_default_schema_factory(std::move(root_schema), options, schema_store_ptr, resolve_funcs, vocabulary);
                 }
             }
-            else if (sch.is_bool())
+            else if (root_schema->is_bool())
             {
-                factory = get_default_schema_factory(std::move(sch), options, schema_store_ptr, resolve_funcs, vocabulary);
+                factory = get_default_schema_factory(std::move(root_schema), options, schema_store_ptr, resolve_funcs, vocabulary);
             }
             else
             {
@@ -67,7 +67,8 @@ namespace jsonschema {
             return factory;
         }
 
-        std::unique_ptr<schema_validator_factory_base<Json>> get_default_schema_factory(Json&& sch,
+        std::unique_ptr<schema_validator_factory_base<Json>> get_default_schema_factory(
+            std::unique_ptr<Json>&& root_schema,
             const evaluation_options& options, 
             schema_store_type* schema_store_ptr,
             const std::vector<resolve_uri_type<Json>>& resolve_funcs,
@@ -75,27 +76,32 @@ namespace jsonschema {
         {
             if (options.default_version() == schema_version::draft202012())
             {
-                return jsoncons::make_unique<jsoncons::jsonschema::draft202012::schema_validator_factory_202012<Json>>(std::move(sch), *this, 
+                return jsoncons::make_unique<jsoncons::jsonschema::draft202012::schema_validator_factory_202012<Json>>(std::move(root_schema),
+                    *this, 
                     options, schema_store_ptr, resolve_funcs, vocabulary);
             }
             else if (options.default_version() == schema_version::draft201909())
             {
-                return jsoncons::make_unique<jsoncons::jsonschema::draft201909::schema_validator_factory_201909<Json>>(std::move(sch), *this, 
+                return jsoncons::make_unique<jsoncons::jsonschema::draft201909::schema_validator_factory_201909<Json>>(std::move(root_schema),
+                    *this, 
                     options, schema_store_ptr, resolve_funcs, vocabulary);
             }
             else if (options.default_version() == schema_version::draft7())
             {
-                return jsoncons::make_unique<jsoncons::jsonschema::draft7::schema_validator_factory_7<Json>>(std::move(sch), *this, 
+                return jsoncons::make_unique<jsoncons::jsonschema::draft7::schema_validator_factory_7<Json>>(std::move(root_schema),
+                    *this, 
                     options, schema_store_ptr, resolve_funcs);
             }
             else if (options.default_version() == schema_version::draft6())
             {
-                return jsoncons::make_unique<jsoncons::jsonschema::draft6::schema_validator_factory_6<Json>>(std::move(sch), *this, 
+                return jsoncons::make_unique<jsoncons::jsonschema::draft6::schema_validator_factory_6<Json>>(std::move(root_schema),
+                    *this, 
                     options, schema_store_ptr, resolve_funcs);
             }
             else if (options.default_version() == schema_version::draft4())
             {
-                return jsoncons::make_unique<jsoncons::jsonschema::draft4::schema_validator_factory_4<Json>>(std::move(sch), *this, 
+                return jsoncons::make_unique<jsoncons::jsonschema::draft4::schema_validator_factory_4<Json>>(std::move(root_schema),
+                    *this, 
                     options, schema_store_ptr, resolve_funcs);
             }
             else
@@ -104,7 +110,8 @@ namespace jsonschema {
             }
         }
         
-        std::unique_ptr<schema_validator_factory_base<Json>> get_factory(Json&& sch, const jsoncons::string_view& schema_id,
+        std::unique_ptr<schema_validator_factory_base<Json>> get_factory(std::unique_ptr<Json>&& root_schema,
+            const jsoncons::string_view& schema_id,
             const evaluation_options& options, schema_store_type* schema_store_ptr,
             const std::vector<resolve_uri_type<Json>>& resolve_funcs,
             const std::unordered_map<std::string,bool>& vocabulary) const
@@ -113,37 +120,43 @@ namespace jsonschema {
 
             if (schema_id == schema_version::draft202012())
             {
-                factory = jsoncons::make_unique<jsoncons::jsonschema::draft202012::schema_validator_factory_202012<Json>>(std::move(sch), *this, 
+                factory = jsoncons::make_unique<jsoncons::jsonschema::draft202012::schema_validator_factory_202012<Json>>(std::move(root_schema), 
+                    *this, 
                     options, schema_store_ptr, resolve_funcs, vocabulary);
             }
             else if (schema_id == schema_version::draft201909())
             {
-                factory = jsoncons::make_unique<jsoncons::jsonschema::draft201909::schema_validator_factory_201909<Json>>(std::move(sch), *this, 
+                factory = jsoncons::make_unique<jsoncons::jsonschema::draft201909::schema_validator_factory_201909<Json>>(std::move(root_schema),
+                    *this, 
                     options, schema_store_ptr, resolve_funcs, vocabulary);
             }
             else if (schema_id == schema_version::draft7())
             {
-                factory = jsoncons::make_unique<jsoncons::jsonschema::draft7::schema_validator_factory_7<Json>>(std::move(sch), *this, 
+                factory = jsoncons::make_unique<jsoncons::jsonschema::draft7::schema_validator_factory_7<Json>>(std::move(root_schema),
+                    *this, 
                     options, schema_store_ptr, resolve_funcs);
             }
             else if (schema_id == schema_version::draft6())
             {
-                factory = jsoncons::make_unique<jsoncons::jsonschema::draft6::schema_validator_factory_6<Json>>(std::move(sch), *this, 
+                factory = jsoncons::make_unique<jsoncons::jsonschema::draft6::schema_validator_factory_6<Json>>(std::move(root_schema),
+                    *this, 
                     options, schema_store_ptr, resolve_funcs);
             }
             else if (schema_id == schema_version::draft4())
             {
-                factory = jsoncons::make_unique<jsoncons::jsonschema::draft4::schema_validator_factory_4<Json>>(std::move(sch), *this, 
+                factory = jsoncons::make_unique<jsoncons::jsonschema::draft4::schema_validator_factory_4<Json>>(std::move(root_schema),
+                    *this, 
                     options, schema_store_ptr, resolve_funcs);
             }
             else
             { 
-                factory = get_factory_from_meta_schema(std::move(sch), schema_id, options, schema_store_ptr, resolve_funcs);
+                factory = get_factory_from_meta_schema(std::move(root_schema), schema_id, options, schema_store_ptr, resolve_funcs);
             }
             return factory;
         }
         
-        std::unique_ptr<schema_validator_factory_base<Json>> get_factory_from_meta_schema(Json&& sch, const jsoncons::string_view& schema_id,
+        std::unique_ptr<schema_validator_factory_base<Json>> get_factory_from_meta_schema(std::unique_ptr<Json>&& root_schema,
+            const jsoncons::string_view& schema_id,
             const evaluation_options& options, schema_store_type* schema_store_ptr,
             const std::vector<resolve_uri_type<Json>>& resolve_funcs) const
         {
@@ -172,7 +185,7 @@ namespace jsonschema {
                     auto schema_it = meta_sch.find("$schema");
                     if (schema_it != meta_sch.object_range().end())
                     {
-                        factory = get_factory(std::move(sch), (*schema_it).value().as_string_view(), options, schema_store_ptr, resolve_funcs, vocabulary);
+                        factory = get_factory(std::move(root_schema), (*schema_it).value().as_string_view(), options, schema_store_ptr, resolve_funcs, vocabulary);
                         found = true;
                     }
                 }
@@ -212,9 +225,9 @@ namespace jsonschema {
     }
 
     template <typename Json,typename SchemaResolver>
-    typename std::enable_if<ext_traits::is_unary_function_object_exact<SchemaResolver,Json,jsoncons::uri>::value,json_schema<Json>>::type
-    make_json_schema(Json sch, const std::string& retrieval_uri, const SchemaResolver& resolver, 
-        evaluation_options options = evaluation_options{})
+    typename std::enable_if<ext_traits::is_function_object_exact<SchemaResolver,Json,jsoncons::uri>::value,json_schema<Json>>::type
+    make_json_schema(Json root_schema, const std::string& retrieval_uri, const SchemaResolver& resolver, 
+        const evaluation_options& options = evaluation_options{})
     {
         using schema_store_type = std::map<jsoncons::uri, schema_validator<Json>*>;
         schema_store_type schema_store; 
@@ -222,15 +235,15 @@ namespace jsonschema {
         
         std::unordered_map<std::string,bool> vocabulary{};
         std::vector<resolve_uri_type<Json>> resolve_funcs = {{meta_resolver<Json>, resolver}};
-        auto schema_validator_factory_base = factory_factory(std::move(sch), options, &schema_store, resolve_funcs, vocabulary);
+        auto schema_validator_factory_base = factory_factory(jsoncons::make_unique<Json>(std::move(root_schema)), options, &schema_store, resolve_funcs, vocabulary);
 
         schema_validator_factory_base->build_schema(retrieval_uri);
         return json_schema<Json>(schema_validator_factory_base->get_schema_validator());
     }
 
     template <typename Json>
-    json_schema<Json> make_json_schema(Json sch, const std::string& retrieval_uri, 
-        evaluation_options options = evaluation_options{})
+    json_schema<Json> make_json_schema(Json root_schema, const std::string& retrieval_uri, 
+        const evaluation_options& options = evaluation_options{})
     {
         using schema_store_type = std::map<jsoncons::uri, schema_validator<Json>*>;
         schema_store_type schema_store; 
@@ -238,16 +251,16 @@ namespace jsonschema {
 
         std::unordered_map<std::string,bool> vocabulary{};
         std::vector<resolve_uri_type<Json>> resolve_funcs = {{meta_resolver<Json>}};
-        auto schema_validator_factory_base = factory_factory(std::move(sch), options, &schema_store, resolve_funcs, vocabulary);
+        auto schema_validator_factory_base = factory_factory(jsoncons::make_unique<Json>(std::move(root_schema)), options, &schema_store, resolve_funcs, vocabulary);
 
         schema_validator_factory_base->build_schema(retrieval_uri);
         return json_schema<Json>(schema_validator_factory_base->get_schema_validator());
     }
 
     template <typename Json,typename SchemaResolver>
-    typename std::enable_if<ext_traits::is_unary_function_object_exact<SchemaResolver,Json,jsoncons::uri>::value,json_schema<Json>>::type
-    make_json_schema(Json sch, const SchemaResolver& resolver, 
-        evaluation_options options = evaluation_options{})
+    typename std::enable_if<ext_traits::is_function_object_exact<SchemaResolver,Json,jsoncons::uri>::value,json_schema<Json>>::type
+    make_json_schema(Json root_schema, const SchemaResolver& resolver, 
+        const evaluation_options& options = evaluation_options{})
     {
         using schema_store_type = std::map<jsoncons::uri, schema_validator<Json>*>;
         schema_store_type schema_store; 
@@ -255,15 +268,15 @@ namespace jsonschema {
 
         std::unordered_map<std::string,bool> vocabulary{};
         std::vector<resolve_uri_type<Json>> resolve_funcs = {{meta_resolver<Json>, resolver}};
-        auto schema_validator_factory_base = factory_factory(std::move(sch), options, &schema_store, resolve_funcs, vocabulary);
+        auto schema_validator_factory_base = factory_factory(jsoncons::make_unique<Json>(std::move(root_schema)), options, &schema_store, resolve_funcs, vocabulary);
 
         schema_validator_factory_base->build_schema();
         return json_schema<Json>(schema_validator_factory_base->get_schema_validator());
     }
-
+ 
     template <typename Json>
-    json_schema<Json> make_json_schema(Json sch, 
-        evaluation_options options = evaluation_options{})
+    json_schema<Json> make_json_schema(Json root_schema, 
+        const evaluation_options& options = evaluation_options{})
     {
         using schema_store_type = std::map<jsoncons::uri, schema_validator<Json>*>;
         schema_store_type schema_store; 
@@ -271,7 +284,7 @@ namespace jsonschema {
 
         std::unordered_map<std::string,bool> vocabulary{};
         std::vector<resolve_uri_type<Json>> resolve_funcs = {{meta_resolver<Json>}};
-        auto schema_validator_factory_base = factory_factory(std::move(sch), options, &schema_store, resolve_funcs, vocabulary);
+        auto schema_validator_factory_base = factory_factory(jsoncons::make_unique<Json>(std::move(root_schema)), options, &schema_store, resolve_funcs, vocabulary);
 
         schema_validator_factory_base->build_schema();
         return json_schema<Json>(schema_validator_factory_base->get_schema_validator());

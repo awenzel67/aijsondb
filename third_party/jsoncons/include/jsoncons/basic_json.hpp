@@ -1,4 +1,4 @@
-// Copyright 2013-2025 Daniel Parker
+// Copyright 2013-2026 Daniel Parker
 // Distributed under the Boost license, Version 1.0.
 // (See accompanying file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
@@ -43,7 +43,7 @@
 #include <jsoncons/reflect/json_conv_traits.hpp>
 #include <jsoncons/pretty_print.hpp>
 #include <jsoncons/semantic_tag.hpp>
-#include <jsoncons/ser_util.hpp>
+#include <jsoncons/ser_utils.hpp>
 #include <jsoncons/source.hpp>
 #include <jsoncons/utility/bigint.hpp>
 #include <jsoncons/utility/byte_string.hpp>
@@ -1765,7 +1765,7 @@ namespace jsoncons {
                                 {
                                     return -1;
                                 }
-                                if (val2 >= 0 && val2 < 0)
+                                if (val2 < 0 && val1 >= 0)
                                 {
                                     return 1;
                                 }
@@ -1939,7 +1939,7 @@ namespace jsoncons {
 
         template <typename Source>
         static
-        typename std::enable_if<ext_traits::is_sequence_of<Source,char_type>::value,basic_json>::type
+        typename std::enable_if<ext_traits::is_string_view_of<Source,char_type>::value,basic_json>::type
         parse(const Source& source, 
               const basic_json_decode_options<char_type>& options = basic_json_options<char_type>())
         {
@@ -1965,7 +1965,7 @@ namespace jsoncons {
 
         template <typename Source,typename TempAlloc >
         static
-        typename std::enable_if<ext_traits::is_sequence_of<Source,char_type>::value,basic_json>::type
+        typename std::enable_if<ext_traits::is_string_view_of<Source,char_type>::value,basic_json>::type
             parse(const allocator_set<allocator_type,TempAlloc>& aset, const Source& source, 
               const basic_json_decode_options<char_type>& options = basic_json_options<char_type>())
         {
@@ -2135,7 +2135,7 @@ namespace jsoncons {
 
         template <typename Source>
         static
-        typename std::enable_if<ext_traits::is_sequence_of<Source,char_type>::value,basic_json>::type
+        typename std::enable_if<ext_traits::is_string_view_of<Source,char_type>::value,basic_json>::type
         parse(const Source& source, 
               const basic_json_decode_options<char_type>& options, 
               std::function<bool(json_errc,const ser_context&)> err_handler)
@@ -2162,7 +2162,7 @@ namespace jsoncons {
 
         template <typename Source>
         static
-        typename std::enable_if<ext_traits::is_sequence_of<Source,char_type>::value,basic_json>::type
+        typename std::enable_if<ext_traits::is_string_view_of<Source,char_type>::value,basic_json>::type
         parse(const Source& source, 
             std::function<bool(json_errc,const ser_context&)> err_handler)
         {
@@ -2681,10 +2681,10 @@ namespace jsoncons {
         {
         }
 
-        template <typename Source>
-        basic_json(byte_string_arg_t, const Source& source, 
+        template <typename BytesViewLike>
+        basic_json(byte_string_arg_t, const BytesViewLike& source, 
                    semantic_tag tag = semantic_tag::none,
-                   typename std::enable_if<ext_traits::is_byte_sequence<Source>::value,int>::type = 0)
+                   typename std::enable_if<ext_traits::is_bytes_view_like<BytesViewLike>::value,int>::type = 0)
         {
             auto bytes = jsoncons::span<const uint8_t>(reinterpret_cast<const uint8_t*>(source.data()), source.size());
             
@@ -2692,11 +2692,11 @@ namespace jsoncons {
             construct<byte_string_storage>(ptr, tag);
         }
 
-        template <typename Source>
-        basic_json(byte_string_arg_t, const Source& source, 
+        template <typename BytesViewLike>
+        basic_json(byte_string_arg_t, const BytesViewLike& source, 
                    semantic_tag tag,
                    const Allocator& alloc,
-                   typename std::enable_if<ext_traits::is_byte_sequence<Source>::value,int>::type = 0)
+                   typename std::enable_if<ext_traits::is_bytes_view_like<BytesViewLike>::value,int>::type = 0)
         {
             auto bytes = jsoncons::span<const uint8_t>(reinterpret_cast<const uint8_t*>(source.data()), source.size());
 
@@ -2704,10 +2704,10 @@ namespace jsoncons {
             construct<byte_string_storage>(ptr, tag);
         }
 
-        template <typename Source>
-        basic_json(byte_string_arg_t, const Source& source, 
+        template <typename BytesViewLike>
+        basic_json(byte_string_arg_t, const BytesViewLike& source, 
                    uint64_t ext_tag,
-                   typename std::enable_if<ext_traits::is_byte_sequence<Source>::value,int>::type = 0)
+                   typename std::enable_if<ext_traits::is_bytes_view_like<BytesViewLike>::value,int>::type = 0)
         {
             auto bytes = jsoncons::span<const uint8_t>(reinterpret_cast<const uint8_t*>(source.data()), source.size());
 
@@ -2715,11 +2715,11 @@ namespace jsoncons {
             construct<byte_string_storage>(ptr, semantic_tag::ext);
         }
 
-        template <typename Source>
-        basic_json(byte_string_arg_t, const Source& source, 
+        template <typename BytesViewLike>
+        basic_json(byte_string_arg_t, const BytesViewLike& source, 
                    uint64_t ext_tag,
                    const Allocator& alloc,
-                   typename std::enable_if<ext_traits::is_byte_sequence<Source>::value,int>::type = 0)
+                   typename std::enable_if<ext_traits::is_bytes_view_like<BytesViewLike>::value,int>::type = 0)
         {
             auto bytes = jsoncons::span<const uint8_t>(reinterpret_cast<const uint8_t*>(source.data()), source.size());
 
@@ -5146,6 +5146,7 @@ namespace jsoncons {
         using wojson = basic_json<wchar_t, order_preserving_policy>;
     } // namespace pmr
     #endif
+
 
 } // namespace jsoncons
 

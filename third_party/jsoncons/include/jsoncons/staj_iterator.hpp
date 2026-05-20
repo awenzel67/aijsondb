@@ -1,4 +1,4 @@
-// Copyright 2013-2025 Daniel Parker
+// Copyright 2013-2026 Daniel Parker
 // Distributed under the Boost license, Version 1.0.
 // (See accompanying file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
@@ -53,7 +53,7 @@ namespace jsoncons {
             {
                 done_ = true;
             }
-            else if (cursor_ptr_->current().event_type() == staj_event_type::begin_array)
+            else if (cursor_ptr_->current().event_type() == staj_events::begin_array)
             {
                 next();
             }
@@ -70,7 +70,7 @@ namespace jsoncons {
             {
                 done_ = true;
             }
-            else if (cursor_ptr_->current().event_type() == staj_event_type::begin_array)
+            else if (cursor_ptr_->current().event_type() == staj_events::begin_array)
             {
                 next(ec);
             }
@@ -165,7 +165,7 @@ namespace jsoncons {
                 done_ = true;
                 return;
             }
-            if (JSONCONS_UNLIKELY(cursor_ptr_->current().event_type() == staj_event_type::end_array))
+            if (JSONCONS_UNLIKELY(cursor_ptr_->current().event_type() == staj_events::end_array))
             {
                 done_ = true;
                 return;
@@ -220,7 +220,7 @@ namespace jsoncons {
             {
                 done_ = true;
             }
-            else if (cursor_ptr_->current().event_type() == staj_event_type::begin_object)
+            else if (cursor_ptr_->current().event_type() == staj_events::begin_object)
             {
                 next();
             }
@@ -237,7 +237,7 @@ namespace jsoncons {
             {
                 done_ = true;
             }
-            else if (cursor_ptr_->current().event_type() == staj_event_type::begin_object)
+            else if (cursor_ptr_->current().event_type() == staj_events::begin_object)
             {
                 next(ec);
                 if (JSONCONS_UNLIKELY(ec)) {done_ = true;}
@@ -333,12 +333,12 @@ namespace jsoncons {
                 done_ = true;
                 return;
             }
-            if (JSONCONS_UNLIKELY(cursor_ptr_->current().event_type() == staj_event_type::end_object))
+            if (JSONCONS_UNLIKELY(cursor_ptr_->current().event_type() == staj_events::end_object))
             {
                 done_ = true;
                 return;
             }
-            JSONCONS_ASSERT(cursor_ptr_->current().event_type() == staj_event_type::key);
+            JSONCONS_ASSERT(cursor_ptr_->current().event_type() == staj_events::key);
             auto key = cursor_ptr_->current(). template get<key_type>();
             cursor_ptr_->next(ec);
             if (JSONCONS_UNLIKELY(ec))

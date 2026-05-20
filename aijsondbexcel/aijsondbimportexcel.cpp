@@ -1,5 +1,6 @@
 #include <OpenXLSX.hpp>
 #include "aijsondbimportexcel.h"
+#include "excelhelper.h"
 #include <iostream>
 #include <map>
 #include <string>
@@ -11,166 +12,10 @@
 #include <locale>
 #include <set>
 #include <chrono>
+#include <format>
 #include <filesystem>
-using namespace std;
-using namespace OpenXLSX;
-
-E_EXCEL_LOGICAL_TYPE get_logical_type(XLDocument& doc,OpenXLSX::XLCell& cell)
-{
-    auto cellValueType = cell.value().type();
-    if (cellValueType == OpenXLSX::XLValueType::Empty)
-    {
-        return E_EXCEL_LOGICAL_TYPE::EMPTY;
-    }
-    if (cellValueType == OpenXLSX::XLValueType::Boolean)
-    {
-        return E_EXCEL_LOGICAL_TYPE::BOOLEAN;
-    }
-   // if (cellValueType == OpenXLSX::XLValueType::Integer)
-   // {
-   //     return E_EXCEL_LOGICAL_TYPE::INTEGER;
-   // }
-    if (cellValueType == OpenXLSX::XLValueType::String)
-    {
-        return E_EXCEL_LOGICAL_TYPE::STRING;
-    }
-    if (cellValueType == OpenXLSX::XLValueType::Error)
-    {
-        return E_EXCEL_LOGICAL_TYPE::ERROR;
-    }
-    if (cellValueType != OpenXLSX::XLValueType::Float && cellValueType != OpenXLSX::XLValueType::Integer)
-    {
-        return E_EXCEL_LOGICAL_TYPE::EMPTY;
-    }
-
-
-    try {
-
-        bool isTime = false;
-		bool isDate = false;
-        auto format = cell.cellFormat();
-        auto& mystyles = doc.styles();
-        auto& ff = mystyles.cellFormats()[format];
-        auto nf = ff.numberFormatId();
-        auto& mynf = mystyles.numberFormats();
-        for (size_t index = 0; index < mynf.count(); ++index) {
-			    auto& sfm = mynf.numberFormatByIndex(index);
-                if (sfm.numberFormatId() == nf)
-                {
-
-                    //auto sfm = mynf.numberFormatById(nf);
-                    auto code = sfm.formatCode();
-                    isTime = (code.find("hh") != std::string::npos) || (code.find("HH") != std::string::npos) || (code.find("h") != std::string::npos) || (code.find("H") != std::string::npos);
-                    isDate = (code.find("dd") != std::string::npos) || (code.find("DD") != std::string::npos) || (code.find("yy") != std::string::npos) || (code.find("yy") != std::string::npos);
-                }
-        }
-        
-
-        bool isInteger = cellValueType == OpenXLSX::XLValueType::Integer;
-
-        if (isInteger)
-        {
-            if (isTime && isDate)
-                return  E_EXCEL_LOGICAL_TYPE::DATE;
-            else if (isDate)
-                return  E_EXCEL_LOGICAL_TYPE::DATE;
-            else if (isTime)
-                return  E_EXCEL_LOGICAL_TYPE::TIME;
-            else
-                return E_EXCEL_LOGICAL_TYPE::INTEGER;
-        }
-        else
-        {
-            if (isTime && isDate)
-                return  E_EXCEL_LOGICAL_TYPE::DATE_TIME;
-            else if (isTime)
-                return  E_EXCEL_LOGICAL_TYPE::TIME;
-            else if (isDate)
-                return  E_EXCEL_LOGICAL_TYPE::DATE;
-            else
-                return E_EXCEL_LOGICAL_TYPE::DOUBLE;
-        }
-    }
-    catch (std::exception& ex)
-    {
-        return  E_EXCEL_LOGICAL_TYPE::ERROR;
-    }
-}
-
-void add_cell_type(std::vector<std::vector<E_EXCEL_LOGICAL_TYPE>>& typecols, size_t irow, size_t icol, E_EXCEL_LOGICAL_TYPE celltype)
-{
-    for (size_t icolr = typecols.size(); icolr <= icol; icolr++)
-    {
-        typecols.push_back(std::vector<E_EXCEL_LOGICAL_TYPE>());
-    }
-    for (size_t icolr=0; icolr<typecols.size();icolr++)
-    {
-        size_t size_col = typecols[icolr].size();
-        for (size_t irowr = size_col; irowr <= irow; irowr++)
-        {
-            typecols[icolr].push_back(E_EXCEL_LOGICAL_TYPE::EMPTY);
-        }
-    }
-    typecols[icol][irow] = celltype;
-}
-
-E_EXCEL_LOGICAL_TYPE get_cell_type(std::vector<std::vector<E_EXCEL_LOGICAL_TYPE>>& typecols, size_t irow_header, size_t icol)
-{
-    if (icol >= typecols.size())
-        return E_EXCEL_LOGICAL_TYPE::EMPTY;
-    if (irow_header >= typecols[icol].size())
-        return E_EXCEL_LOGICAL_TYPE::EMPTY;
-
-    std::map < E_EXCEL_LOGICAL_TYPE, size_t> typecounts;
-    for (size_t irowr = irow_header + 1; irowr < typecols[icol].size(); irowr++)
-    {
-        auto hkl = typecounts.find(typecols[icol][irowr]);
-        if (hkl == typecounts.end()) {
-            typecounts[typecols[icol][irowr]] = 1;
-        }
-        else
-        {
-            (*hkl).second = (*hkl).second + 1;
-        }
-    }
-
-    E_EXCEL_LOGICAL_TYPE valmax = E_EXCEL_LOGICAL_TYPE::EMPTY;
-    size_t count_max=0;
-
-	bool hasDateTomeAndDate = 
-        typecounts.find(E_EXCEL_LOGICAL_TYPE::DATE_TIME) != typecounts.end()
-		&& typecounts.find(E_EXCEL_LOGICAL_TYPE::DATE) != typecounts.end()
-        ;
-
-    if (hasDateTomeAndDate)
-    {
-        typecounts[E_EXCEL_LOGICAL_TYPE::DATE_TIME]= typecounts[E_EXCEL_LOGICAL_TYPE::DATE_TIME]+ typecounts[E_EXCEL_LOGICAL_TYPE::DATE];
-        typecounts[E_EXCEL_LOGICAL_TYPE::DATE] = 0;
-    }
-
-    bool hasIntegerAndDouble =
-        typecounts.find(E_EXCEL_LOGICAL_TYPE::DOUBLE) != typecounts.end()
-        && typecounts.find(E_EXCEL_LOGICAL_TYPE::INTEGER) != typecounts.end()
-	;
-
-    if (hasIntegerAndDouble)
-    {
-        typecounts[E_EXCEL_LOGICAL_TYPE::DOUBLE] = typecounts[E_EXCEL_LOGICAL_TYPE::DOUBLE] + typecounts[E_EXCEL_LOGICAL_TYPE::INTEGER];
-        typecounts[E_EXCEL_LOGICAL_TYPE::INTEGER] = 0;
-	}
-
-    for (auto typecount : typecounts)
-    {
-        if ( typecount.first != E_EXCEL_LOGICAL_TYPE::EMPTY && typecount.second > count_max)
-        {
-            valmax = typecount.first;
-            count_max = typecount.second;
-        }
-    }
-
-    return valmax;
-}
-
+#include <time.h>
+#include "excelhelper.h"
 
 bool getHeaders2(XLDocument& doc, XLWorksheet& ws, std::map<int, std::vector<std::string>>& headers, std::vector<std::vector<E_EXCEL_LOGICAL_TYPE>>& typecols)
 {
@@ -295,57 +140,6 @@ std::vector<std::string>  getHeaderForRow(std::map<int, std::vector<std::string>
     return empty;
 }
 
-std::wstring to_wstring(const std::string& utf8_str)
-{
-    std::wstring_convert<std::codecvt_utf8<wchar_t>> converter;
-    // Convert UTF-8 string to wide string
-    std::wstring wide_str = converter.from_bytes(utf8_str);
-    return wide_str;
-}
-
-std::string to_js_name_w(const std::wstring& label)
-{
-    std::set<wchar_t> forbiddenChar = {};
-    std::string astr;
-    bool firstAlpha = false;
-    for (size_t i = 0; i < label.size(); i++)
-    {
-        wchar_t c = label[i];
-        if (c < 172)
-        {
-            if (isalpha(c))
-            {
-                firstAlpha = true;
-                char ac = static_cast<char>(c);
-                astr += ac;
-            }
-            else if (isalnum(c))
-            {
-                if (firstAlpha)
-                {
-                    astr += static_cast<char>(c);
-                }
-            }
-        }
-        else
-        {
-            if (firstAlpha) {
-                astr += '_';
-            }
-        }
-    }
-
-    return astr;
-}
-
-
-std::string to_js_name(const std::string& label)
-{
-    std::wstring wjsname = to_wstring(label);
-    return to_js_name_w(wjsname);
-}
-
-
 
 bool ExcelImporter::import(const std::string& filepath, std::map<std::string, std::vector<std::string>>& cache, std::string& schema,std::string& error)
 {
@@ -354,10 +148,18 @@ bool ExcelImporter::import(const std::string& filepath, std::map<std::string, st
     XLDocument doc;
     //doc.create("./Demo01.xlsx", XLForceOverwrite);
     std::filesystem::path apa(filepath);
-    std::string filename = apa.filename().u8string();
+    std::string filename( apa.filename().string());
     auto start = std::chrono::high_resolution_clock::now();
-    doc.open(filepath);
-   
+
+    try {
+        doc.open(filepath);
+    }
+    catch (std::exception& ex)
+    {
+        error = ex.what();
+        return false;
+	}
+
     std::string sschema = R"(
     {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -591,16 +393,40 @@ bool ExcelImporter::import(const std::string& filepath, std::map<std::string, st
                                 auto dth= xcv.get<XLDateTime>();
                                 auto tm=dth.tm();
                                 std::time_t t = std::mktime(&tm);
-                                char buf[sizeof "2011-10-08T07:07:09Z"];
+                                std::string sdatetime;
                                 if (target_value_type == E_EXCEL_LOGICAL_TYPE::DATE_TIME)
                                 {
-                                    strftime(buf, sizeof buf, "%FT%TZ", std::gmtime(&t));
+                              //      if (t >= 0)
+                              //      {
+                              //          char buf[sizeof "2011-10-08T07:07:09Z"];
+                              //          strftime(buf, sizeof buf, "%FT%TZ", std::gmtime(&t));
+							  //			sdatetime = buf;
+                              //      }
+                              //      else
+                                    {
+										const auto* local_tz = std::chrono::current_zone();
+                                        auto ymd = std::chrono::year_month_day{
+                                            std::chrono::year{tm.tm_year + 1900},
+                                            std::chrono::month{static_cast<unsigned>(tm.tm_mon + 1)},
+                                            std::chrono::day{static_cast<unsigned>(tm.tm_mday)}
+                                        };
+                                        auto local_time = std::chrono::local_days{ ymd } +
+                                            std::chrono::hours{ tm.tm_hour } +
+                                            std::chrono::minutes{ tm.tm_min } +
+                                            std::chrono::seconds{ tm.tm_sec };
+
+                                        // Convert to sys_time (UTC)
+                                        auto zt = std::chrono::zoned_time{ local_tz, local_time };
+                                        sdatetime = format_utc(zt);
+                                    }
                                 }
                                 else
                                 {
-                                    strftime(buf, sizeof buf, "%F", std::localtime(&t));
+                                    char buf[sizeof "2011-10-08T07:07:09Z"];
+                                    strftime(buf, sizeof buf, "%F", &tm);
+									sdatetime = buf;
 								}
-                                jrow[header] = buf;
+                                jrow[header] = sdatetime;
 
                             }
                             catch (...)
@@ -674,3 +500,4 @@ bool ExcelImporter::import(const std::string& filepath, std::map<std::string, st
 ExcelImporter::ExcelImporter()
 {
 }
+

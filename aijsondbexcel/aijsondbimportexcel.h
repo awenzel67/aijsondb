@@ -2,19 +2,7 @@
 #define AIJSONDB_EXCEL_IMPORT_H
 #include "../aijsondb/aijsondbimporter.hpp"
 #include <map>
-
-enum E_EXCEL_LOGICAL_TYPE
-{
-    EMPTY,
-    BOOLEAN,
-    DOUBLE,
-    INTEGER,
-    DATE,
-    TIME,
-    DATE_TIME,
-    STRING,
-    ERROR
-};
+#include "aijsondbimportexcelplus.h"
 
 class ExcelImporter: public IBulkImporter
 {

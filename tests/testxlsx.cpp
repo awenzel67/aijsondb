@@ -10,6 +10,9 @@
 #include <sstream>
 #include <filesystem>
 #include <memory>
+#include <codecvt>
+
+#define SAVE_TEST_DATA 1
 
 using namespace bw::tempdir;
 
@@ -134,7 +137,7 @@ TEST_CASE("Test Domino query excel real woksheets", "[domino]") {
 }
 
 int test_excel(const std::string& xlsx_file, jsoncons::json& jvalue, jsoncons::json& jschema) {
-	IBulkImporter* o = new ExcelImporter();
+	IBulkImporter* o = new ExcelImporterPlus();
 	std::unique_ptr<IBulkImporter> op(o);
 	register_importer(op);
 	TempDir temp_dir;
@@ -236,12 +239,15 @@ TEST_CASE("Test Domino query excel duckdb woksheets", "[domino]") {
 		REQUIRE(f1_d1 == aab);
 	}
 	{
-		REQUIRE(!jvalue.contains("Feuille3"));
-		REQUIRE(!jschema["properties"].contains("Feuille3"));
+		REQUIRE(jvalue.contains("Feuille3"));
+		REQUIRE(jschema["properties"].contains("Feuille3"));
+		REQUIRE(jvalue["Feuille3"].size() == 0);
 	}
 	{
-		REQUIRE(!jvalue.contains("Feuille4"));
-		REQUIRE(!jschema["properties"].contains("Feuille4"));
+		REQUIRE(jvalue.contains("Feuille4"));
+		REQUIRE(jschema["properties"].contains("Feuille4"));
+		REQUIRE(jvalue["Feuille4"].size() == 0);
+
 	}
 	{
 		REQUIRE(jvalue.contains("Feuille5"));
@@ -381,4 +387,1276 @@ TEST_CASE("Test Domino query excel duckdb woksheets", "[domino]") {
 			REQUIRE(check_schema_description(jschema, table, "Col12", "Col12"));
 		}
 	}
+}
+
+TEST_CASE("Test Domino query excel duckdb absolute_sheet_filename", "[domino]") {
+	jsoncons::json jvalue;
+	jsoncons::json jschema;
+	int load = test_excel("gdal/absolute_sheet_filename.xlsx", jvalue, jschema);
+	REQUIRE(load == 0);
+#if SAVE_TEST_DATA
+	{
+		std::ofstream ofs("c:/del/output.json");
+		// Write JSON to file with pretty-print formatting
+		ofs << jsoncons::pretty_print(jvalue);
+	}
+	{
+		std::ofstream ofs("c:/del/output_schema.json");
+		// Write JSON to file with pretty-print formatting
+		ofs << jsoncons::pretty_print(jschema);
+	}
+#endif
+	{
+		REQUIRE(jvalue.contains("Feuille1"));
+		REQUIRE(jvalue["Feuille1"].size() == 0);
+		std::string aaa = "Test";
+		std::string aab = "Test";
+		REQUIRE(jschema["properties"]["Feuille1"]["items"]["properties"].contains(aaa));
+		std::string f1_d1 = jschema["properties"]["Feuille1"]["items"]["properties"][aaa]["description"].as_string();
+		REQUIRE(f1_d1 == aab);
+	}
+}
+
+
+TEST_CASE("Test Domino query excel duckdb cells_with_inline_formatting", "[domino]") {
+	jsoncons::json jvalue;
+	jsoncons::json jschema;
+	int load = test_excel("gdal/cells_with_inline_formatting.xlsx", jvalue, jschema);
+	REQUIRE(load == 0);
+#if SAVE_TEST_DATA
+	{
+		std::ofstream ofs("c:/del/output.json");
+		// Write JSON to file with pretty-print formatting
+		ofs << jsoncons::pretty_print(jvalue);
+	}
+	{
+		std::ofstream ofs("c:/del/output_schema.json");
+		// Write JSON to file with pretty-print formatting
+		ofs << jsoncons::pretty_print(jschema);
+	}
+#endif
+	std::string table = "Feuil1";
+	REQUIRE(jvalue.contains(table));
+	REQUIRE(jvalue[table].size() == 2);
+
+	{
+		std::string col = "header1";
+		std::string cold = "header 1";
+		int cv = jvalue[table][0][col].as<int>();
+		//22.01.12
+		REQUIRE(cv == 1);
+		int cv2 = jvalue[table][1][col].as<int>();
+		REQUIRE(cv2 == 2);
+		REQUIRE(check_schema_type(jschema, table, col, "integer"));
+		REQUIRE(check_schema_description(jschema, table, col, cold));
+	}
+	{
+		std::string col = "Header2";
+		std::string cold = "Header 2";
+		std::string cv = jvalue[table][0][col].as<std::string>();
+		//22.01.12
+		REQUIRE(cv == "text 2");
+		std::string cv2 = jvalue[table][1][col].as<std::string>();
+		REQUIRE(cv2 == "text 4");
+		REQUIRE(check_schema_type(jschema, table, col, "string"));
+		REQUIRE(check_schema_description(jschema, table, col, cold));
+	}
+	{
+		std::string col = "header3";
+		std::string cold = "header 3";
+		std::string cv = jvalue[table][0][col].as<std::string>();
+		//22.01.12
+		REQUIRE(cv == "text 3");
+		std::string cv2 = jvalue[table][1][col].as<std::string>();
+		REQUIRE(cv2 == "text5");
+		REQUIRE(check_schema_type(jschema, table, col, "string"));
+		REQUIRE(check_schema_description(jschema, table, col, cold));
+	}
+}
+
+/*
+time
+07.04.2020 09:58:00
+07.04.2020 09:58:01
+07.04.2020 09:58:02
+07.04.2020 09:58:03
+07.04.2020 09:58:04
+07.04.2020 09:58:05
+07.04.2020 10:03:00
+07.04.2020 10:10:00
+07.04.2020 10:29:00
+07.04.2020 10:42:00
+*/
+
+
+TEST_CASE("Test Domino query excel duckdb datetime", "[domino]") {
+	std::string time_strings[] = { 
+		"2020-04-07T07:58:00Z",
+		"2020-04-07T07:58:01Z",
+		"2020-04-07T07:58:02Z",
+		"2020-04-07T07:58:03Z",
+		"2020-04-07T07:58:04Z",
+		"2020-04-07T07:58:05Z",
+		"2020-04-07T08:03:00Z",
+		"2020-04-07T08:10:00Z",
+		"2020-04-07T08:29:00Z",
+		"2020-04-07T08:42:00Z"
+	};
+
+
+	jsoncons::json jvalue;
+	jsoncons::json jschema;
+	int load = test_excel("gdal/datetime.xlsx", jvalue, jschema);
+	REQUIRE(load == 0);
+#if SAVE_TEST_DATA
+	{
+		std::ofstream ofs("c:/del/output.json");
+		// Write JSON to file with pretty-print formatting
+		ofs << jsoncons::pretty_print(jvalue);
+	}
+	{
+		std::ofstream ofs("c:/del/output_schema.json");
+		// Write JSON to file with pretty-print formatting
+		ofs << jsoncons::pretty_print(jschema);
+	}
+#endif
+	std::string table = "Sheet1";
+	REQUIRE(jvalue.contains(table));
+	REQUIRE(jvalue[table].size() == 10);
+	
+	{
+		std::string col = "time";
+		std::string cold = "time";
+		for (size_t i = 0; i < 10; ++i)
+		{
+			std::string cv = jvalue[table][i][col].as<std::string>();
+			//22.01.12
+			REQUIRE(cv == time_strings[i]);
+		}
+
+		REQUIRE(check_schema_type(jschema, table, col, "string"));
+		REQUIRE(check_schema_description(jschema, table, col, cold));
+	}
+}
+
+void  readUtf8File(const std::string& file_test,std::vector<std::string>& lines) {
+	std::string pathxlsx = test_data_dir_xlsx();
+	std::string filename = pathxlsx + "text/" + file_test;
+	std::ifstream file(filename, std::ios::binary); // binary avoids unwanted newline conversions
+	if (!file) {
+		std::cerr << "Error: Cannot open file '" << filename << "'\n";
+		return;
+	}
+
+	// Optional: imbue UTF-8 locale for wide string conversion if needed
+	//file.imbue(std::locale(file.getloc(),
+	//	new std::codecvt_utf8<wchar_t>));
+
+
+	std::string line;
+	while (std::getline(file, line)) {
+		// Here, 'line' contains UTF-8 encoded text
+		//std::cout << line << "\n";
+		lines.push_back(line);
+	}
+}
+
+TEST_CASE("Test Domino query excel duckdb inlineStr", "[domino]") {
+	jsoncons::json jvalue;
+	jsoncons::json jschema;
+	int load = test_excel("gdal/inlineStr.xlsx", jvalue, jschema);
+	std::vector<std::string> testdata;
+	readUtf8File("inlineStr.test",testdata);
+	REQUIRE(load == 0);
+#if SAVE_TEST_DATA
+	{
+		std::ofstream ofs("c:/del/output.json");
+		// Write JSON to file with pretty-print formatting
+		ofs << jsoncons::pretty_print(jvalue);
+	}
+	{
+		std::ofstream ofs("c:/del/output_schema.json");
+		// Write JSON to file with pretty-print formatting
+		ofs << jsoncons::pretty_print(jschema);
+	}
+#endif
+	std::string table = "inlineStr";
+	REQUIRE(jvalue.contains(table));
+	REQUIRE(jvalue[table].size() == 1);
+
+	{
+		std::string col = "Bl_num";
+		std::string cold = "Bl_num";
+		std::string cv = jvalue[table][0][col].as<std::string>();
+		//22.01.12
+		std::string utf8_ref = testdata[0];
+		REQUIRE(cv == utf8_ref);
+		REQUIRE(check_schema_type(jschema, table, col, "string"));
+		REQUIRE(check_schema_description(jschema, table, col, cold));
+	}
+	{
+		std::string col = "Bl_road";
+		std::string cold = "Bl_road";
+		std::string cv = jvalue[table][0][col].as<std::string>();
+		//22.01.12
+		std::string utf8_ref = testdata[1];
+		REQUIRE(cv == utf8_ref);
+		REQUIRE(check_schema_type(jschema, table, col, "string"));
+		REQUIRE(check_schema_description(jschema, table, col, cold));
+	}
+	{
+		std::string col = "Bl_soi_e";
+		std::string cold = "Bl_soi_e";
+		std::string cv = jvalue[table][0][col].as<std::string>();
+		//22.01.12
+		std::string utf8_ref = testdata[2];
+		REQUIRE(cv == utf8_ref);
+		REQUIRE(check_schema_type(jschema, table, col, "string"));
+		REQUIRE(check_schema_description(jschema, table, col, cold));
+	}
+	{
+		std::string col = "Bl_sub_district_e";
+		std::string cold = "Bl_sub_district_e";
+		std::string cv = jvalue[table][0][col].as<std::string>();
+		//22.01.12
+		std::string utf8_ref = testdata[3];
+		REQUIRE(cv == utf8_ref);
+		REQUIRE(check_schema_type(jschema, table, col, "string"));
+		REQUIRE(check_schema_description(jschema, table, col, cold));
+	}
+	{
+		std::string col = "Bl_district_e";
+		std::string cold = "Bl_district_e";
+		std::string cv = jvalue[table][0][col].as<std::string>();
+		//22.01.12
+		std::string utf8_ref = testdata[4];
+		REQUIRE(cv == utf8_ref);
+		REQUIRE(check_schema_type(jschema, table, col, "string"));
+		REQUIRE(check_schema_description(jschema, table, col, cold));
+	}
+	{
+		std::string col = "Bl_chang";
+		std::string cold = "Bl_chang";
+		std::string cv = jvalue[table][0][col].as<std::string>();
+		//22.01.12
+		std::string utf8_ref = testdata[5];
+		REQUIRE(cv == utf8_ref);
+		REQUIRE(check_schema_type(jschema, table, col, "string"));
+		REQUIRE(check_schema_description(jschema, table, col, cold));
+	}
+	{
+		std::string col = "Bl_Road_1";
+		std::string cold = "Bl_Road_1";
+		std::string cv = jvalue[table][0][col].as<std::string>();
+		//22.01.12
+		std::string utf8_ref = testdata[6];
+		REQUIRE(cv == utf8_ref);
+		REQUIRE(check_schema_type(jschema, table, col, "string"));
+		REQUIRE(check_schema_description(jschema, table, col, cold));
+	}
+	{
+		std::string col = "Bl_Soi_t";
+		std::string cold = "Bl_Soi_t";
+		std::string cv = jvalue[table][0][col].as<std::string>();
+		//22.01.12
+		std::string utf8_ref = testdata[7];
+		REQUIRE(cv == utf8_ref);
+		REQUIRE(check_schema_type(jschema, table, col, "string"));
+		REQUIRE(check_schema_description(jschema, table, col, cold));
+	}
+	{
+		std::string col = "Bl_Sub_District_t";
+		std::string cold = "Bl_Sub_District_t";
+		std::string cv = jvalue[table][0][col].as<std::string>();
+		//22.01.12
+		std::string utf8_ref = testdata[8];
+		REQUIRE(cv == utf8_ref);
+		REQUIRE(check_schema_type(jschema, table, col, "string"));
+		REQUIRE(check_schema_description(jschema, table, col, cold));
+	}
+	{
+		std::string col = "Bl_District_t";
+		std::string cold = "Bl_District_t";
+		std::string cv = jvalue[table][0][col].as<std::string>();
+		//22.01.12
+		std::string utf8_ref = testdata[9];
+		REQUIRE(cv == utf8_ref);
+		REQUIRE(check_schema_type(jschema, table, col, "string"));
+		REQUIRE(check_schema_description(jschema, table, col, cold));
+	}
+	{
+		std::string col = "Bl_changwat_t";
+		std::string cold = "Bl_changwat_t";
+		std::string cv = jvalue[table][0][col].as<std::string>();
+		//22.01.12
+		std::string utf8_ref = testdata[10];
+		REQUIRE(cv == utf8_ref);
+		REQUIRE(check_schema_type(jschema, table, col, "string"));
+		REQUIRE(check_schema_description(jschema, table, col, cold));
+	}
+	{
+		std::string col = "Lon";
+		std::string cold = "Lon";
+		std::string cv = jvalue[table][0][col].as<std::string>();
+		//22.01.12
+		std::string utf8_ref = testdata[11];
+		REQUIRE(cv == utf8_ref);
+		REQUIRE(check_schema_type(jschema, table, col, "string"));
+		REQUIRE(check_schema_description(jschema, table, col, cold));
+	}
+	{
+		std::string col = "Lat";
+		std::string cold = "Lat";
+		std::string cv = jvalue[table][0][col].as<std::string>();
+		//22.01.12
+		std::string utf8_ref = testdata[12];
+		REQUIRE(cv == utf8_ref);
+		REQUIRE(check_schema_type(jschema, table, col, "string"));
+		REQUIRE(check_schema_description(jschema, table, col, cold));
+	}
+}
+
+TEST_CASE("Test Domino query excel duckdb not_all_columns_present", "[domino]") {
+	jsoncons::json jvalue;
+	jsoncons::json jschema;
+	int load = test_excel("gdal/not_all_columns_present.xlsx", jvalue, jschema);
+	REQUIRE(load == 0);
+#if SAVE_TEST_DATA
+	{
+		std::ofstream ofs("c:/del/output.json");
+		// Write JSON to file with pretty-print formatting
+		ofs << jsoncons::pretty_print(jvalue);
+	}
+	{
+		std::ofstream ofs("c:/del/output_schema.json");
+		// Write JSON to file with pretty-print formatting
+		ofs << jsoncons::pretty_print(jschema);
+	}
+#endif
+	std::string table = "foo";
+	REQUIRE(!jvalue.contains(table));
+}
+
+TEST_CASE("Test Domino query excel duckdb row_without_r_attribute", "[domino]") {
+	jsoncons::json jvalue;
+	jsoncons::json jschema;
+	int load = test_excel("gdal/row_without_r_attribute.xlsx", jvalue, jschema);
+	REQUIRE(load == 0);
+#if SAVE_TEST_DATA
+	{
+		std::ofstream ofs("c:/del/output.json");
+		// Write JSON to file with pretty-print formatting
+		ofs << jsoncons::pretty_print(jvalue);
+	}
+	{
+		std::ofstream ofs("c:/del/output_schema.json");
+		// Write JSON to file with pretty-print formatting
+		ofs << jsoncons::pretty_print(jschema);
+	}
+#endif
+	std::string table = "Result1";
+	// OpenXLSX seems to ignore rows without r attribute, so we get an empty table
+	REQUIRE(jvalue.size()==0);
+}
+
+std::vector<std::string> splitByTab(const std::string& line) {
+	std::vector<std::string> tokens;
+	std::stringstream ss(line);
+	std::string item;
+
+	// Extract substrings separated by tab
+	while (std::getline(ss, item, '\t')) {
+		tokens.push_back(item);
+	}
+
+	return tokens;
+}
+
+
+std::string to_js_name(const std::string& label);
+
+TEST_CASE("Test Domino query excel duckdb test_empty_last_field", "[domino]") {
+	jsoncons::json jvalue;
+	jsoncons::json jschema;
+	int load = test_excel("gdal/test_empty_last_field.xlsx", jvalue, jschema);
+	REQUIRE(load == 0);
+	std::vector<std::string> testdata;
+	readUtf8File("test_empty_last_field.test", testdata);
+#if SAVE_TEST_DATA
+	{
+		std::ofstream ofs("c:/del/output.json");
+		// Write JSON to file with pretty-print formatting
+		ofs << jsoncons::pretty_print(jvalue);
+	}
+	{
+		std::ofstream ofs("c:/del/output_schema.json");
+		// Write JSON to file with pretty-print formatting
+		ofs << jsoncons::pretty_print(jschema);
+	}
+#endif
+	std::string table = "Sheet1";
+	// OpenXLSX seems to ignore rows without r attribute, so we get an empty table
+	REQUIRE(jvalue.size() == 1);
+	REQUIRE(jvalue.contains(table));
+		size_t il = 0;
+		auto hline = testdata[il];
+		auto hfields = splitByTab(hline);
+		std::vector<size_t> stringcols = { 1,2,4,6,7,8,9,10,12,13,14,15,16,17 };
+		for (size_t irow = 1; irow < testdata.size(); ++irow) {
+			auto line = testdata[irow];
+			auto fields = splitByTab(line);
+			for (auto i : stringcols)
+			{
+				std::cout << "Row " << irow << " Col " << i << "\n";
+				std::string cold = hfields[i];
+				std::string col = to_js_name(hfields[i]);
+				std::string cv = jvalue[table][irow-1][col].as<std::string>();
+				//22.01.12
+				std::string utf8_ref = "";
+				if (i<fields.size())
+					utf8_ref = fields[i];
+				REQUIRE(cv == utf8_ref);
+				REQUIRE(check_schema_type(jschema, table, col, "string"));
+				REQUIRE(check_schema_description(jschema, table, col, cold));
+			}
+		}
+		std::vector<size_t> numcols = { 0, 3};
+		for (size_t irow = 1; irow < testdata.size(); ++irow) {
+			auto line = testdata[irow];
+			auto fields = splitByTab(line);
+			for (auto i : numcols)
+			{
+				std::cout << "Row " << irow << " Col " << i << "\n";
+				std::string cold = hfields[i];
+				std::string col = to_js_name(hfields[i]);
+				auto value = jvalue[table][irow - 1][col];
+				std::string utf8_ref = "";
+				if (i < fields.size())
+					utf8_ref = fields[i];
+
+				if (value.is_null())
+				{
+					REQUIRE(utf8_ref.empty());
+				}
+				else if (value.is_int64())
+				{
+					int cv = jvalue[table][irow - 1][col].as<int>();
+					REQUIRE(!utf8_ref.empty());
+					int num = std::stoi(utf8_ref);
+					REQUIRE(cv == num);
+
+				}
+				else 
+				{
+					std::string err = "Unexpected type";
+					REQUIRE(err=="");
+				}
+				//22.01.12
+				REQUIRE(check_schema_type(jschema, table, col, "integer"));
+				REQUIRE(check_schema_description(jschema, table, col, cold));
+			}
+		}
+		std::vector<size_t> datatimecols = { 5,11 };
+		for (size_t irow = 1; irow < testdata.size(); ++irow) {
+			auto line = testdata[irow];
+			auto fields = splitByTab(line);
+			for (auto i : datatimecols)
+			{
+				std::cout << "Row " << irow << " Col " << i << "\n";
+				std::string cold = hfields[i];
+				std::string col = to_js_name(hfields[i]);
+				std::string cv = jvalue[table][irow - 1][col].as<std::string>();
+				//22.01.12
+				std::string utf8_ref = "";
+				if (i < fields.size())
+					utf8_ref = fields[i];
+				std::tm tmstruct_ref = {};
+				std::istringstream ss(utf8_ref);
+				ss >> std::get_time(&tmstruct_ref, "%d.%m.%Y");
+				std::tm tmstruct = {};
+				std::istringstream ss2(cv);
+				ss2 >> std::get_time(&tmstruct, "%Y-%m-%d");
+				REQUIRE(tmstruct.tm_year == tmstruct_ref.tm_year);
+				REQUIRE(tmstruct.tm_mon == tmstruct_ref.tm_mon);
+				REQUIRE(tmstruct.tm_mday == tmstruct_ref.tm_mday);	
+				REQUIRE(check_schema_type(jschema, table, col, "string"));
+				REQUIRE(check_schema_description(jschema, table, col, cold));
+			}
+		}
+}
+
+
+TEST_CASE("Test Domino query excel duckdb test_missing_row1_data.test", "[domino]") {
+	jsoncons::json jvalue;
+	jsoncons::json jschema;
+	int load = test_excel("gdal/test_missing_row1_data.xlsx", jvalue, jschema);
+	REQUIRE(load == 0);
+	std::vector<std::string> testdata;
+	readUtf8File("test_missing_row1_data.test", testdata);
+#if SAVE_TEST_DATA
+	{
+		std::ofstream ofs("c:/del/output.json");
+		// Write JSON to file with pretty-print formatting
+		ofs << jsoncons::pretty_print(jvalue);
+	}
+	{
+		std::ofstream ofs("c:/del/output_schema.json");
+		// Write JSON to file with pretty-print formatting
+		ofs << jsoncons::pretty_print(jschema);
+	}
+#endif
+	std::string table = "Sheet1";
+	// OpenXLSX seems to ignore rows without r attribute, so we get an empty table
+	REQUIRE(jvalue.size() == 1);
+	REQUIRE(jvalue.contains(table));
+	size_t il = 0;
+	auto hline = testdata[il];
+	auto hfields = splitByTab(hline);
+	std::vector<size_t> stringcols = { 1,2,4,6,7,8,9,10,12,13,14,15,16,17 };
+	for (size_t irow = 1; irow < testdata.size(); ++irow) {
+		auto line = testdata[irow];
+		auto fields = splitByTab(line);
+		for (auto i : stringcols)
+		{
+			std::cout << "Row " << irow << " Col " << i << "\n";
+			std::string cold = hfields[i];
+			std::string col = to_js_name(hfields[i]);
+			std::string cv = jvalue[table][irow - 1][col].as<std::string>();
+			//22.01.12
+			std::string utf8_ref = "";
+			if (i < fields.size())
+				utf8_ref = fields[i];
+			REQUIRE(cv == utf8_ref);
+			REQUIRE(check_schema_type(jschema, table, col, "string"));
+			REQUIRE(check_schema_description(jschema, table, col, cold));
+		}
+	}
+	std::vector<size_t> numcols = { 0, 3 };
+	for (size_t irow = 1; irow < testdata.size(); ++irow) {
+		auto line = testdata[irow];
+		auto fields = splitByTab(line);
+		for (auto i : numcols)
+		{
+			std::cout << "Row " << irow << " Col " << i << "\n";
+			std::string cold = hfields[i];
+			std::string col = to_js_name(hfields[i]);
+			auto value = jvalue[table][irow - 1][col];
+			std::string utf8_ref = "";
+			if (i < fields.size())
+				utf8_ref = fields[i];
+
+			if (value.is_null())
+			{
+				REQUIRE(utf8_ref.empty());
+			}
+			else if (value.is_int64())
+			{
+				int cv = jvalue[table][irow - 1][col].as<int>();
+				REQUIRE(!utf8_ref.empty());
+				int num = std::stoi(utf8_ref);
+				REQUIRE(cv == num);
+
+			}
+			else
+			{
+				std::string err = "Unexpected type";
+				REQUIRE(err == "");
+			}
+			//22.01.12
+			REQUIRE(check_schema_type(jschema, table, col, "integer"));
+			REQUIRE(check_schema_description(jschema, table, col, cold));
+		}
+	}
+	std::vector<size_t> datatimecols = { 5,11 };
+	for (size_t irow = 1; irow < testdata.size(); ++irow) {
+		auto line = testdata[irow];
+		auto fields = splitByTab(line);
+		for (auto i : datatimecols)
+		{
+			std::cout << "Row " << irow << " Col " << i << "\n";
+			std::string cold = hfields[i];
+			std::string col = to_js_name(hfields[i]);
+			std::string cv = jvalue[table][irow - 1][col].as<std::string>();
+			//22.01.12
+			std::string utf8_ref = "";
+			if (i < fields.size())
+				utf8_ref = fields[i];
+			std::tm tmstruct_ref = {};
+			std::istringstream ss(utf8_ref);
+			ss >> std::get_time(&tmstruct_ref, "%d.%m.%Y");
+			std::tm tmstruct = {};
+			std::istringstream ss2(cv);
+			ss2 >> std::get_time(&tmstruct, "%Y-%m-%d");
+			REQUIRE(tmstruct.tm_year == tmstruct_ref.tm_year);
+			REQUIRE(tmstruct.tm_mon == tmstruct_ref.tm_mon);
+			REQUIRE(tmstruct.tm_mday == tmstruct_ref.tm_mday);
+			REQUIRE(check_schema_type(jschema, table, col, "string"));
+			REQUIRE(check_schema_description(jschema, table, col, cold));
+		}
+	}
+}
+
+
+TEST_CASE("Test Domino query excel duckdb with_xml_prefix", "[domino]") {
+	jsoncons::json jvalue;
+	jsoncons::json jschema;
+	int load = test_excel("gdal/with_xml_prefix.xlsx", jvalue, jschema);
+	REQUIRE(load == -1);
+}
+
+void check_string_column(const jsoncons::json& jvalue, const jsoncons::json& jschema, const std::string& table, const std::vector<std::string>& hfields, const std::vector<size_t>& stringcols, const std::vector<std::string>& testdata) {
+	for (size_t irow = 1; irow < testdata.size(); ++irow) {
+		auto line = testdata[irow];
+		auto fields = splitByTab(line);
+		for (auto i : stringcols)
+		{
+			//std::cout << "Row " << irow << " Col " << i << "\n";
+			std::string cold = hfields[i];
+			std::string col = to_js_name(hfields[i]);
+			std::string cv = jvalue[table][irow - 1][col].as<std::string>();
+			//22.01.12
+			std::string utf8_ref = "";
+			if (i < fields.size())
+				utf8_ref = fields[i];
+			REQUIRE(cv == utf8_ref);
+			REQUIRE(check_schema_type(jschema, table, col, "string"));
+			REQUIRE(check_schema_description(jschema, table, col, cold));
+		}
+	}
+}
+
+//std::vector<size_t> numcols = { 0, 3 };
+void check_numeric_column(const jsoncons::json& jvalue, const jsoncons::json& jschema, const std::string& table, const std::vector<std::string>& hfields, const std::vector<size_t>& numcols, const std::vector<std::string>& testdata) {
+		for (size_t irow = 1; irow < testdata.size(); ++irow) {
+			auto line = testdata[irow];
+			auto fields = splitByTab(line);
+			for (auto i : numcols)
+			{
+				std::cout << "Row " << irow << " Col " << i << "\n";
+				std::string cold = hfields[i];
+				std::string col = to_js_name(hfields[i]);
+				auto value = jvalue[table][irow - 1][col];
+				std::string utf8_ref = "";
+				if (i < fields.size())
+					utf8_ref = fields[i];
+
+				if (value.is_null())
+				{
+					REQUIRE(utf8_ref.empty());
+				}
+				else if (value.is_int64())
+				{
+					int cv = jvalue[table][irow - 1][col].as<int>();
+					REQUIRE(!utf8_ref.empty());
+					int num = std::stoi(utf8_ref);
+					REQUIRE(cv == num);
+
+				}
+				else
+				{
+					std::string err = "Unexpected type";
+					REQUIRE(err == "");
+				}
+				//22.01.12
+				REQUIRE(check_schema_type(jschema, table, col, "integer"));
+				REQUIRE(check_schema_description(jschema, table, col, cold));
+			}
+		}
+}
+
+void check_datetime_column(const jsoncons::json& jvalue, const jsoncons::json& jschema, const std::string& table, const std::vector<std::string>& hfields, const std::vector<size_t>& datatimecols, const std::vector<std::string>& testdata,std::string format_ref="%d.%m.%Y") {
+
+	for (size_t irow = 1; irow < testdata.size(); ++irow) {
+		auto line = testdata[irow];
+		auto fields = splitByTab(line);
+		for (auto i : datatimecols)
+		{
+			std::cout << "Row " << irow << " Col " << i << "\n";
+			std::string cold = hfields[i];
+			std::string col = to_js_name(hfields[i]);
+			std::string cv = jvalue[table][irow - 1][col].as<std::string>();
+			//22.01.12
+			std::string utf8_ref = "";
+			if (i < fields.size())
+				utf8_ref = fields[i];
+			std::tm tmstruct_ref = {};
+			std::istringstream ss(utf8_ref);
+			ss >> std::get_time(&tmstruct_ref,format_ref.c_str());
+			std::tm tmstruct = {};
+			std::istringstream ss2(cv);
+			ss2 >> std::get_time(&tmstruct, "%Y-%m-%d");
+			REQUIRE(tmstruct.tm_year == tmstruct_ref.tm_year);
+			REQUIRE(tmstruct.tm_mon == tmstruct_ref.tm_mon);
+			REQUIRE(tmstruct.tm_mday == tmstruct_ref.tm_mday);
+			REQUIRE(check_schema_type(jschema, table, col, "string"));
+			REQUIRE(check_schema_description(jschema, table, col, cold));
+		}
+	}
+}
+
+TEST_CASE("Test Domino query excel duckdb duckdb_excel_rep1", "[domino]") {
+	jsoncons::json jvalue;
+	jsoncons::json jschema;
+	int load = test_excel("duckdb_excel_rep1.xlsx", jvalue, jschema);
+	REQUIRE(load == 0);
+	std::vector<std::string> testdata;
+	readUtf8File("duckdb_excel_rep1.test", testdata);
+#if SAVE_TEST_DATA
+	{
+		std::ofstream ofs("c:/del/output.json");
+		// Write JSON to file with pretty-print formatting
+		ofs << jsoncons::pretty_print(jvalue);
+	}
+	{
+		std::ofstream ofs("c:/del/output_schema.json");
+		// Write JSON to file with pretty-print formatting
+		ofs << jsoncons::pretty_print(jschema);
+	}
+#endif
+	std::string table = "Feuil1";
+	// OpenXLSX seems to ignore rows without r attribute, so we get an empty table
+	REQUIRE(jvalue.size() == 1);
+	REQUIRE(jvalue.contains(table));
+	size_t il = 0;
+	auto hline = testdata[il];
+	auto hfields = splitByTab(hline);
+	std::vector<size_t> stringcols = { 0 };
+	check_string_column(jvalue, jschema, table, hfields, stringcols, testdata);
+	std::vector<size_t> numcols = { 1,2 };
+	check_numeric_column(jvalue, jschema, table, hfields, numcols, testdata);
+	std::vector<size_t> datetimecols = { 3 };
+	check_datetime_column(jvalue, jschema, table, hfields, datetimecols, testdata, "%Y-%m-%d");
+}
+
+TEST_CASE("Test Domino query excel non_sequential", "[domino]") {
+	jsoncons::json jvalue;
+	jsoncons::json jschema;
+	int load = test_excel("non_sequential.xlsx", jvalue, jschema);
+	REQUIRE(load == 0);
+#if SAVE_TEST_DATA
+	{
+		std::ofstream ofs("c:/del/output.json");
+		// Write JSON to file with pretty-print formatting
+		ofs << jsoncons::pretty_print(jvalue);
+	}
+	{
+		std::ofstream ofs("c:/del/output_schema.json");
+		// Write JSON to file with pretty-print formatting
+		ofs << jsoncons::pretty_print(jschema);
+	}
+#endif
+	std::string table = "Sheet1";
+	REQUIRE(jvalue.contains(table));
+	REQUIRE(jvalue[table].size() == 1);
+
+	{
+		std::string col = "test";
+		std::string cold = "test";
+		std::string cv = jvalue[table][0][col].as<std::string>();
+		//22.01.12
+		REQUIRE(cv == "break");
+		REQUIRE(check_schema_type(jschema, table, col, "string"));
+		REQUIRE(check_schema_description(jschema, table, col, cold));
+	}
+	{
+		std::string col = "waitforit";
+		std::string cold = "wait for it";
+		std::string cv = jvalue[table][0][col].as<std::string>();
+		//22.01.12
+		REQUIRE(cv == "will");
+		REQUIRE(check_schema_type(jschema, table, col, "string"));
+		REQUIRE(check_schema_description(jschema, table, col, cold));
+	}
+}
+
+//columns_letter
+
+TEST_CASE("Test Domino query columns_letter", "[domino]") {
+	jsoncons::json jvalue;
+	jsoncons::json jschema;
+	int load = test_excel("columns_letter.xlsx", jvalue, jschema);
+	REQUIRE(load == 0);
+#if SAVE_TEST_DATA
+	{
+		std::ofstream ofs("c:/del/output.json");
+		// Write JSON to file with pretty-print formatting
+		ofs << jsoncons::pretty_print(jvalue);
+	}
+	{
+		std::ofstream ofs("c:/del/output_schema.json");
+		// Write JSON to file with pretty-print formatting
+		ofs << jsoncons::pretty_print(jschema);
+	}
+#endif
+	REQUIRE(jvalue.size() == 0);
+}
+
+//phonetic
+TEST_CASE("Test Domino query phonetic", "[domino]") {
+	jsoncons::json jvalue;
+	jsoncons::json jschema;
+	int load = test_excel("phonetic.xlsx", jvalue, jschema);
+	REQUIRE(load == 0);
+	std::vector<std::string> testdata;
+	readUtf8File("phonetic.test", testdata);
+#if SAVE_TEST_DATA
+	{
+		std::ofstream ofs("c:/del/output.json");
+		// Write JSON to file with pretty-print formatting
+		ofs << jsoncons::pretty_print(jvalue);
+	}
+	{
+		std::ofstream ofs("c:/del/output_schema.json");
+		// Write JSON to file with pretty-print formatting
+		ofs << jsoncons::pretty_print(jschema);
+	}
+#endif
+	REQUIRE(jvalue.size() == 1);
+	std::string table = "Sheet1";
+	REQUIRE(jvalue.contains(table));
+	REQUIRE(jvalue[table].size() == 1);
+
+	{
+		std::string col = "test";
+		std::string cold = "test";
+		std::string cv = jvalue[table][0][col].as<std::string>();
+		//22.01.12
+		REQUIRE(cv == "bar");
+		REQUIRE(check_schema_type(jschema, table, col, "string"));
+		REQUIRE(check_schema_description(jschema, table, col, cold));
+	}
+	{
+		auto fields = splitByTab(testdata[1]);
+		std::string col = "phonetic";
+		std::string cold = "phonetic";
+		std::string cv = jvalue[table][0][col].as<std::string>();
+		//22.01.12
+		REQUIRE(cv == fields[1]);
+		REQUIRE(check_schema_type(jschema, table, col, "string"));
+		REQUIRE(check_schema_description(jschema, table, col, cold));
+	}
+}
+
+// This excel sheet is not used in duckdb tests
+TEST_CASE("Test Domino query excel basic", "[domino]") {
+	jsoncons::json jvalue;
+	jsoncons::json jschema;
+	int load = test_excel("basic.xlsx", jvalue, jschema);
+	REQUIRE(load == 0);
+#if SAVE_TEST_DATA
+	{
+		std::ofstream ofs("c:/del/output.json");
+		// Write JSON to file with pretty-print formatting
+		ofs << jsoncons::pretty_print(jvalue);
+	}
+	{
+		std::ofstream ofs("c:/del/output_schema.json");
+		// Write JSON to file with pretty-print formatting
+		ofs << jsoncons::pretty_print(jschema);
+	}
+#endif
+	REQUIRE(jvalue.size() > 0);
+}
+
+// TODO verbundene Spalten/zeilen richtig behandeln
+TEST_CASE("Test Domino query excel collapsed_cells_2", "[domino]") {
+	jsoncons::json jvalue;
+	jsoncons::json jschema;
+	int load = test_excel("collapsed_cells.xlsx", jvalue, jschema);
+	REQUIRE(load == 0);
+#if SAVE_TEST_DATA
+	{
+		std::ofstream ofs("c:/del/output.json");
+		// Write JSON to file with pretty-print formatting
+		ofs << jsoncons::pretty_print(jvalue);
+	}
+	{
+		std::ofstream ofs("c:/del/output_schema.json");
+		// Write JSON to file with pretty-print formatting
+		ofs << jsoncons::pretty_print(jschema);
+	}
+#endif
+	REQUIRE(jvalue.size() > 0);
+}
+
+// TODO leere Spalten am Anfang ignorieren
+TEST_CASE("Test Domino query excel two_sheets", "[domino]") {
+	jsoncons::json jvalue;
+	jsoncons::json jschema;
+	int load = test_excel("two_sheets.xlsx", jvalue, jschema);
+	REQUIRE(load == 0);
+#if SAVE_TEST_DATA
+	{
+		std::ofstream ofs("c:/del/output.json");
+		// Write JSON to file with pretty-print formatting
+		ofs << jsoncons::pretty_print(jvalue);
+	}
+	{
+		std::ofstream ofs("c:/del/output_schema.json");
+		// Write JSON to file with pretty-print formatting
+		ofs << jsoncons::pretty_print(jschema);
+	}
+#endif
+	REQUIRE(jvalue.size() == 2);
+	{
+		auto sheet = jvalue["Sheet1"];
+		REQUIRE(sheet.size() == 1);
+		auto valueA = sheet[0]["A"].as<int>();
+		REQUIRE(valueA == 42);
+		auto valueB = sheet[0]["B"].as<int>();
+		REQUIRE(valueB == 1337);
+	}
+	{
+		auto sheet = jvalue["MySheet"];
+		REQUIRE(sheet.size() == 1);
+		auto valueA = sheet[0]["X"].as<std::string>();
+		REQUIRE(valueA == "foo");
+		auto valueB = sheet[0]["Y"].as<std::string>();
+		REQUIRE(valueB == "bar");
+	}
+}
+
+
+TEST_CASE("Test Domino query excel normalize_names_1", "[domino]") {
+	jsoncons::json jvalue;
+	jsoncons::json jschema;
+	int load = test_excel("normalize_names_1.xlsx", jvalue, jschema);
+	REQUIRE(load == 0);
+#if SAVE_TEST_DATA
+	{
+		std::ofstream ofs("c:/del/output.json");
+		// Write JSON to file with pretty-print formatting
+		ofs << jsoncons::pretty_print(jvalue);
+	}
+	{
+		std::ofstream ofs("c:/del/output_schema.json");
+		// Write JSON to file with pretty-print formatting
+		ofs << jsoncons::pretty_print(jschema);
+	}
+#endif
+	REQUIRE(jvalue.size() == 1);
+	auto sheet = jvalue["Sheet1"];
+	REQUIRE(sheet.size() == 2);
+	
+	auto valueA = sheet[0]["A"].as<int>();
+	REQUIRE(valueA == 123);
+	auto valueA2 = sheet[1]["A"].as<int>();
+	REQUIRE(valueA2 == 345);
+
+	auto valueB = sheet[0]["B"].as<std::string>();
+	REQUIRE(valueB == "TEST1");
+	auto valueB1 = sheet[1]["B"].as<std::string>();
+	REQUIRE(valueB1 == "TEST1");
+
+	auto valueC = sheet[0]["C"].as<std::string>();
+	REQUIRE(valueC == "text1");
+	auto valueC1 = sheet[1]["C"].as<std::string>();
+	REQUIRE(valueC1 == "text2");
+}
+
+TEST_CASE("Test Domino query excel time_data_with_blanks", "[domino]") {
+	jsoncons::json jvalue;
+	jsoncons::json jschema;
+	int load = test_excel("time_data_with_blanks.xlsx", jvalue, jschema);
+	REQUIRE(load == 0);
+#if SAVE_TEST_DATA
+	{
+		std::ofstream ofs("c:/del/output.json");
+		// Write JSON to file with pretty-print formatting
+		ofs << jsoncons::pretty_print(jvalue);
+	}
+	{
+		std::ofstream ofs("c:/del/output_schema.json");
+		// Write JSON to file with pretty-print formatting
+		ofs << jsoncons::pretty_print(jschema);
+	}
+#endif
+	REQUIRE(jvalue.size() == 1);
+	auto sheet = jvalue["Sheet1"];
+	REQUIRE(sheet.size() == 25);
+	
+	double dhours = 24.0;
+	double dminutes = 60.0*24.0;
+	double dseconds = 60.0 * 60.0 * 24.0;
+	{
+		auto valueA = sheet[0]["time_column"].as<double>();
+		double expected = 26.0 / dminutes;
+		REQUIRE(std::abs(valueA - expected) < 0.000001);
+	}
+	auto valueEmpty = sheet[1]["time_column"].is_null();
+	REQUIRE(valueEmpty);
+	{
+		auto valueA = sheet[24]["time_column"].as<double>();
+		double expected = 1.0+ 26.0 / dminutes;
+		REQUIRE(std::abs(valueA - expected) < 0.000001);
+	}
+}
+
+TEST_CASE("Test Domino query excel time_data_with_blanks_no_leading_zero", "[domino]") {
+	jsoncons::json jvalue;
+	jsoncons::json jschema;
+	int load = test_excel("time_data_with_blanks_no_leading_zero.xlsx", jvalue, jschema);
+	REQUIRE(load == 0);
+#if SAVE_TEST_DATA
+	{
+		std::ofstream ofs("c:/del/output.json");
+		// Write JSON to file with pretty-print formatting
+		ofs << jsoncons::pretty_print(jvalue);
+	}
+	{
+		std::ofstream ofs("c:/del/output_schema.json");
+		// Write JSON to file with pretty-print formatting
+		ofs << jsoncons::pretty_print(jschema);
+	}
+#endif
+	REQUIRE(jvalue.size() == 1);
+	auto sheet = jvalue["Sheet1"];
+	REQUIRE(sheet.size() == 25);
+
+	double dhours = 24.0;
+	double dminutes = 60.0 * 24.0;
+	double dseconds = 60.0 * 60.0 * 24.0;
+	{
+		auto valueA = sheet[0]["time_column"].as<double>();
+		double expected = 26.0 / dminutes;
+		REQUIRE(std::abs(valueA - expected) < 0.000001);
+	}
+	auto valueEmpty = sheet[1]["time_column"].is_null();
+	REQUIRE(valueEmpty);
+	{
+		auto valueA = sheet[24]["time_column"].as<double>();
+		double expected = 1.0 + 26.0 / dminutes;
+		REQUIRE(std::abs(valueA - expected) < 0.000001);
+	}
+}
+
+// TODO wertzellen über mehrere Zeile/Spalten
+TEST_CASE("Test Domino query excel collapsed_cells_jagged", "[domino]") {
+	jsoncons::json jvalue;
+	jsoncons::json jschema;
+	int load = test_excel("collapsed_cells_jagged.xlsx", jvalue, jschema);
+	REQUIRE(load == 0);
+#if SAVE_TEST_DATA
+	{
+		std::ofstream ofs("c:/del/output.json");
+		// Write JSON to file with pretty-print formatting
+		ofs << jsoncons::pretty_print(jvalue);
+	}
+	{
+		std::ofstream ofs("c:/del/output_schema.json");
+		// Write JSON to file with pretty-print formatting
+		ofs << jsoncons::pretty_print(jschema);
+	}
+#endif
+	REQUIRE(jvalue.size() == 1);
+	auto sheet = jvalue["Sheet1"];
+	REQUIRE(sheet.size() == 4);
+}
+
+TEST_CASE("Test Domino query excel google_sheets", "[domino]") {
+	jsoncons::json jvalue;
+	jsoncons::json jschema;
+	int load = test_excel("google_sheets.xlsx", jvalue, jschema);
+	REQUIRE(load == 0);
+#if SAVE_TEST_DATA
+	{
+		std::ofstream ofs("c:/del/output.json");
+		// Write JSON to file with pretty-print formatting
+		ofs << jsoncons::pretty_print(jvalue);
+	}
+	{
+		std::ofstream ofs("c:/del/output_schema.json");
+		// Write JSON to file with pretty-print formatting
+		ofs << jsoncons::pretty_print(jschema);
+	}
+#endif
+	REQUIRE(jvalue.size() == 1);
+	auto sheet = jvalue["Sheet1"];
+	REQUIRE(sheet.size() == 2);
+	{
+		auto valueA = sheet[0]["ABC"].as<double>();
+		double expected = 123;
+		REQUIRE(std::abs(valueA - expected) < 0.000001);
+	}
+	{
+		auto valueA = sheet[1]["ABC"].as<double>();
+		double expected = 456;
+		REQUIRE(std::abs(valueA - expected) < 0.000001);
+	}
+	{
+		auto valueA = sheet[0]["HELLO"].as<std::string>();
+		std::string expected = "500,60";
+		REQUIRE(valueA == expected);
+	}
+	{
+		auto valueA = sheet[1]["HELLO"].as<std::string>();
+		std::string expected = "300,40";
+		REQUIRE(valueA == expected);
+	}
+	{
+		auto valueA = sheet[0]["WORLD"].as<std::string>();
+		std::string expected = "ABC";
+		REQUIRE(valueA == expected);
+	}
+	{
+		auto valueA = sheet[1]["WORLD"].as<std::string>();
+		std::string expected = "some text";
+		REQUIRE(valueA == expected);
+	}
+}
+
+
+int test_excel_plus(const std::string& xlsx_file, jsoncons::json& jvalue, jsoncons::json& jschema) {
+	IBulkImporter* o = new ExcelImporterPlus();
+	std::unique_ptr<IBulkImporter> op(o);
+	register_importer(op);
+	TempDir temp_dir;
+
+	std::filesystem::path path_data = temp_dir.path() / "employees_excel.json";
+	std::filesystem::path path_schema = temp_dir.path() / "employees_excel_schema.json";
+
+	//std::string pd = "C:/del/output2_utf8.json";
+	if (std::filesystem::exists(path_data))
+	{
+		std::filesystem::remove(path_data);
+	}
+
+	if (std::filesystem::exists(path_schema))
+	{
+		std::filesystem::remove(path_schema);
+	}
+
+	//std::string filename = "Employees.xlsx";
+	std::string pathxlsx = test_data_dir_xlsx();
+	std::string pathk = pathxlsx + "xlsx/" + xlsx_file;
+	int res = aijsondb_load_data_with_cache(pathk.c_str(), path_data.string().c_str(), path_schema.string().c_str());
+	if (res != 0)
+	{
+		std::cerr << "Failed to load data: " << res << std::endl;
+		return res;
+	}
+
+	{
+		std::ifstream file(path_data);
+		if (!file.is_open()) {
+			std::cerr << "Error: Could not open file '" << path_data << "'\n";
+			return -1;
+		}
+
+		// Parse JSON from file
+		jvalue = jsoncons::decode_json<jsoncons::json>(file);
+	}
+	{
+		std::ifstream file(path_schema);
+		if (!file.is_open()) {
+			std::cerr << "Error: Could not open file '" << path_schema << "'\n";
+			return -1;
+		}
+
+		// Parse JSON from file
+		jschema = jsoncons::decode_json<jsoncons::json>(file);
+	}
+	return 0;
+}
+
+
+TEST_CASE("Test Domino query excel header_only", "[domino]") {
+	jsoncons::json jvalue;
+	jsoncons::json jschema;
+	int load = test_excel("header_only.xlsx", jvalue, jschema);
+	REQUIRE(load == 0);
+#if SAVE_TEST_DATA
+	{
+		std::ofstream ofs("c:/del/output.json");
+		// Write JSON to file with pretty-print formatting
+		ofs << jsoncons::pretty_print(jvalue);
+	}
+	{
+		std::ofstream ofs("c:/del/output_schema.json");
+		// Write JSON to file with pretty-print formatting
+		ofs << jsoncons::pretty_print(jschema);
+	}
+#endif
+	REQUIRE(jvalue.size() == 1);
+	auto sheet = jvalue["Sheet1"];
+	REQUIRE(sheet.size() == 0);
+	std::string table = "Sheet1";
+	{
+		std::string col = "Header1";
+		std::string cold = "Header1";
+		REQUIRE(check_schema_type(jschema, table, col, "string"));
+		REQUIRE(check_schema_description(jschema, table, col, cold));
+	}
+	{
+		std::string col = "Header2";
+		std::string cold = "Header2";
+		REQUIRE(check_schema_type(jschema, table, col, "string"));
+		REQUIRE(check_schema_description(jschema, table, col, cold));
+	}
+	{
+		std::string col = "Header3";
+		std::string cold = "Header3";
+		REQUIRE(check_schema_type(jschema, table, col, "string"));
+		REQUIRE(check_schema_description(jschema, table, col, cold));
+	}
+	{
+		std::string col = "Header4";
+		std::string cold = "Header4";
+		REQUIRE(check_schema_type(jschema, table, col, "string"));
+		REQUIRE(check_schema_description(jschema, table, col, cold));
+	}
+}
+
+TEST_CASE("Test Domino query excel sparse", "[domino]") {
+	jsoncons::json jvalue;
+	jsoncons::json jschema;
+	int load = test_excel("sparse.xlsx", jvalue, jschema);
+	REQUIRE(load == 0);
+#if SAVE_TEST_DATA
+	{
+		std::ofstream ofs("c:/del/output.json");
+		// Write JSON to file with pretty-print formatting
+		ofs << jsoncons::pretty_print(jvalue);
+	}
+	{
+		std::ofstream ofs("c:/del/output_schema.json");
+		// Write JSON to file with pretty-print formatting
+		ofs << jsoncons::pretty_print(jschema);
+	}
+#endif
+	REQUIRE(jvalue.size() == 1);
+}
+
+TEST_CASE("Test Domino query excel collapsed_cells", "[domino]") {
+	jsoncons::json jvalue;
+	jsoncons::json jschema;
+	int load = test_excel_plus("collapsed_cells.xlsx", jvalue, jschema);
+	REQUIRE(load == 0);
+#if SAVE_TEST_DATA
+	{
+		std::ofstream ofs("c:/del/output.json");
+		// Write JSON to file with pretty-print formatting
+		ofs << jsoncons::pretty_print(jvalue);
+	}
+	{
+		std::ofstream ofs("c:/del/output_schema.json");
+		// Write JSON to file with pretty-print formatting
+		ofs << jsoncons::pretty_print(jschema);
+	}
+#endif
+	REQUIRE(jvalue.size() == 2);
+}
+
+
+bool testUncollapseCells(std::string& excel_in, std::string& excel_out);
+
+
+TEST_CASE("Test Domino query excel unmerge", "[domino]") {
+	std::string excel_in = "collapsed_cells_jagged.xlsx"; //"collapsed_cells.xlsx";
+
+	std::string pathxlsx = test_data_dir_xlsx();
+	std::string pathk = pathxlsx + "xlsx/" + excel_in;
+	std::string excel_out = pathxlsx + "xlsx/" + "collapsed_cells_jagged_unmerged.xlsx";
+	bool res = testUncollapseCells(pathk, excel_out);
+	REQUIRE(res);
 }
