@@ -20,6 +20,11 @@
 
 typedef std::tuple<int, std::vector<std::string>> HeaderInfo;
 
+size_t countDistinct(const std::vector<std::string>& vec) {
+    //std::set<std::string> distinctSet(vec.begin(), vec.end());
+    return vec.size();
+}
+
 bool getHeaders2Plus(XLDocument& doc, XLWorksheet& ws, std::map<int,HeaderInfo>& headers, std::vector<std::vector<E_EXCEL_LOGICAL_TYPE>>& typecols)
 {
     //std::map<int, std::vector<std::string>> headers;
@@ -75,7 +80,7 @@ bool getHeaders2Plus(XLDocument& doc, XLWorksheet& ws, std::map<int,HeaderInfo>&
 
         if (isHeader)
         {
-            if (headerRowMax.size() < headerRow.size())
+            if ( countDistinct(headerRowMax) < countDistinct(headerRow))
             {
                 headerRowMax = headerRow;
                 irowHeader = irow;
@@ -200,6 +205,22 @@ bool uncollapseCellsInDocument(XLDocument& doc)
     return true;
 }
 
+std::string make_individal_header(std::map<string,size_t>& headers,const std::string& header)
+{
+	auto it = headers.find(header);
+	size_t index = 1;
+    if (it != headers.end())
+    {
+        headers[header] = index;
+        return header + "_" + std::to_string(index);
+        index = it->second + 1;
+    }
+    else
+    {
+		headers[header] = index;
+		return header;
+    }
+}
 
 bool ExcelImporterPlus::import(const std::string& filepath, std::map<std::string, std::vector<std::string>>& cache, std::string& schema, std::string& error)
 {
@@ -278,11 +299,14 @@ bool ExcelImporterPlus::import(const std::string& filepath, std::map<std::string
             {
                 if (!schemaCreated) {
                     HeaderInfo headerRow = getHeaderForRowPlus(headers, irow);
+					std::map<std::string,size_t> headerMap;
                     for (size_t ih = 0; ih < std::get<1>(headerRow).size(); ih++)
                     {
 						int i = ih + std::get<0>(headerRow);
                         std::string headerLabel = std::get<1>(headerRow)[ih];
                         std::string header = to_js_name(std::get<1>(headerRow)[ih]);
+                        header = make_individal_header(headerMap, header);
+						
                         js["properties"][sheetname]["items"]["properties"][header] = jsoncons::json::object();
                         js["properties"][sheetname]["items"]["properties"][header]["description"] = headerLabel;
                         auto celltype = get_cell_type(typecols, irow, i);
@@ -326,6 +350,7 @@ bool ExcelImporterPlus::import(const std::string& filepath, std::map<std::string
             jsoncons::json jrow;
             size_t icell = 1;
             size_t iheader = 0;
+            std::map<std::string, size_t> headerMap;
             for (auto& ccell : row.cells())
             {
                 auto& cell = ccell.value();
@@ -336,6 +361,7 @@ bool ExcelImporterPlus::import(const std::string& filepath, std::map<std::string
                     int iColHead = icell - 1 - icellStart;
                     std::string headerLabel = std::get<1>(headerRow)[iColHead];
                     std::string header = to_js_name(headerLabel);
+                    header = make_individal_header(headerMap, header);
                     auto target_value_type = E_EXCEL_LOGICAL_TYPE::EMPTY;
                     auto source_value_type = get_logical_type(doc, ccell);
                     if (iColHead>=0 && iColHead < target_types.size())
@@ -524,6 +550,7 @@ bool ExcelImporterPlus::import(const std::string& filepath, std::map<std::string
                 if (iColHead >= 0 && iColHead < target_types.size())
                     target_value_type = target_types[iColHead];
                 std::string header = to_js_name(headerLabel);
+                header = make_individal_header(headerMap, header);
                 if (target_value_type == E_EXCEL_LOGICAL_TYPE::STRING)
                 {
                     jrow[header] = "";

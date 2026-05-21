@@ -1154,6 +1154,17 @@ TEST_CASE("Test Domino query excel non_sequential", "[domino]") {
 		std::string cold = "test";
 		std::string cv = jvalue[table][0][col].as<std::string>();
 		//22.01.12
+		REQUIRE(cv == "this");
+		REQUIRE(check_schema_type(jschema, table, col, "string"));
+		REQUIRE(check_schema_description(jschema, table, col, cold));
+	}
+
+
+	{
+		std::string col = "test_1";
+		std::string cold = "test";
+		std::string cv = jvalue[table][0][col].as<std::string>();
+		//22.01.12
 		REQUIRE(cv == "break");
 		REQUIRE(check_schema_type(jschema, table, col, "string"));
 		REQUIRE(check_schema_description(jschema, table, col, cold));
@@ -1218,6 +1229,15 @@ TEST_CASE("Test Domino query phonetic", "[domino]") {
 
 	{
 		std::string col = "test";
+		std::string cold = "test";
+		std::string cv = jvalue[table][0][col].as<std::string>();
+		//22.01.12
+		REQUIRE(cv == "foo");
+		REQUIRE(check_schema_type(jschema, table, col, "string"));
+		REQUIRE(check_schema_description(jschema, table, col, cold));
+	}
+	{
+		std::string col = "test_1";
 		std::string cold = "test";
 		std::string cv = jvalue[table][0][col].as<std::string>();
 		//22.01.12
