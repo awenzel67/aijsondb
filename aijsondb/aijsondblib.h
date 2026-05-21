@@ -5,6 +5,9 @@
 int aijsondb_load_data(const char* filepath_data, const char* filepath_schema);
 int aijsondb_save_data(const char* filepath_data);
 int aijsondb_query(const char* query, char* buffer, int nbuffer);
+int aijsondb_query_result_set(const char* query);
+int aijsondb_result_set_next(unsigned int index_result_set,unsigned int index_next,char* bucket, int nbucket, char* buffer, int nbuffer,int* isArray);
+int aijsondb_result_set_clear(unsigned int index_result_set);
 int aijsondb_free_data();
 const char* aijsondb_last_error();
 int load_cache(const char* filepath);

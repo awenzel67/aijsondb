@@ -563,3 +563,282 @@ TEST_CASE("Test aijsondb read excel", "[domino]") {
     test_mona();
 }
 */
+
+size_t save_result(std::map<size_t, jsoncons::json>& mapj, jsoncons::json& j);
+bool get_result(std::map<size_t, jsoncons::json>& mapj, size_t result_set_index, size_t index, std::string& bucket, jsoncons::json& value, bool& isArray);
+
+TEST_CASE("Test aijsondb create result set", "[domino]") {
+
+	std::map<size_t, jsoncons::json> mapj;
+	size_t index_result_set = 0;
+
+	JSRuntime* rt;
+	JSContext* ctx;
+	rt = JS_NewRuntime();
+	ctx = JS_NewContext(rt);
+	{
+		jsoncons::json jin(jsoncons::json_array_arg);
+		jin.push_back("a");
+		jin.push_back("b");
+		std::string eres_test;
+		{
+			std::stringstream sstin;
+			sstin << jin;
+			std::cout << "Serialized JSON: " << sstin.str() << std::endl;
+			eres_test = sstin.str();
+		}
+		{
+			jsoncons::json jin = eres_test;
+			std::stringstream sstin;
+			sstin << jin;
+			std::cout << "Serialized JSON: " << sstin.str() << std::endl;
+			eres_test = sstin.str();
+		}
+
+		std::string eres = "JSON.parse(" + eres_test + ")";
+		JSValue jsv = JS_Eval(ctx, eres.c_str(), eres.size(), "<result>", JS_EVAL_TYPE_GLOBAL);
+		if (JS_IsException(jsv)) {
+			FAIL("Failed to evaluate JavaScript expression");
+			JS_FreeValue(ctx, jsv);
+			JS_FreeContext(ctx);
+			JS_FreeRuntime(rt);
+			return;
+		}
+		jsoncons::json j;
+		toJsonWithVirtual(ctx, jsv, j);
+		std::stringstream sst;
+		sst << j;
+		std::cout << "Serialized JSON: " << sst.str() << std::endl;
+		//std::map<size_t, jsoncons::json> mapj;
+		index_result_set = save_result(mapj, j);
+
+		//REQUIRE(sst.str() == eres_test);
+		JS_FreeValue(ctx, jsv);
+	}
+	JS_FreeContext(ctx);
+	JS_FreeRuntime(rt);
+	size_t index = 0;
+	std::string bucket;
+	jsoncons::json fragment;
+	bool is_array = false;
+	std::vector<std::string> res;
+	while (get_result(mapj, index_result_set, index, bucket, fragment,is_array)) {
+		std::stringstream sst2;
+		sst2 << fragment;
+		std::cout << "Serialized JSON: " << sst2.str() << std::endl;
+		res.push_back(sst2.str());
+		REQUIRE(is_array==true);
+		index++;
+	}
+	REQUIRE(index == 2);
+	REQUIRE(res[0] == "\"a\"");
+	REQUIRE(res[1] == "\"b\"");
+}
+
+TEST_CASE("Test aijsondb create result set single integer", "[domino]") {
+
+	std::map<size_t, jsoncons::json> mapj;
+	size_t index_result_set = 0;
+
+	JSRuntime* rt;
+	JSContext* ctx;
+	rt = JS_NewRuntime();
+	ctx = JS_NewContext(rt);
+	{
+		jsoncons::json jin(100);
+		std::string eres_test;
+		{
+			std::stringstream sstin;
+			sstin << jin;
+			std::cout << "Serialized JSON: " << sstin.str() << std::endl;
+			eres_test = sstin.str();
+		}
+		{
+			jsoncons::json jin = eres_test;
+			std::stringstream sstin;
+			sstin << jin;
+			std::cout << "Serialized JSON: " << sstin.str() << std::endl;
+			eres_test = sstin.str();
+		}
+
+		std::string eres = "JSON.parse(" + eres_test + ")";
+		JSValue jsv = JS_Eval(ctx, eres.c_str(), eres.size(), "<result>", JS_EVAL_TYPE_GLOBAL);
+		if (JS_IsException(jsv)) {
+			FAIL("Failed to evaluate JavaScript expression");
+			JS_FreeValue(ctx, jsv);
+			JS_FreeContext(ctx);
+			JS_FreeRuntime(rt);
+			return;
+		}
+		jsoncons::json j;
+		toJsonWithVirtual(ctx, jsv, j);
+		std::stringstream sst;
+		sst << j;
+		std::cout << "Serialized JSON: " << sst.str() << std::endl;
+		//std::map<size_t, jsoncons::json> mapj;
+		index_result_set = save_result(mapj, j);
+
+		//REQUIRE(sst.str() == eres_test);
+		JS_FreeValue(ctx, jsv);
+	}
+	JS_FreeContext(ctx);
+	JS_FreeRuntime(rt);
+	size_t index = 0;
+	std::string bucket;
+	jsoncons::json fragment;
+	bool is_array = false;
+	std::vector<std::string> res;
+	while (get_result(mapj, index_result_set, index, bucket, fragment, is_array)) {
+		std::stringstream sst2;
+		sst2 << fragment;
+		std::cout << "Serialized JSON: " << sst2.str() << std::endl;
+		res.push_back(sst2.str());
+		index++;
+	}
+	REQUIRE(index == 1);
+	REQUIRE(res[0] == "100");
+}
+
+TEST_CASE("Test aijsondb create result set single float", "[domino]") {
+
+	std::map<size_t, jsoncons::json> mapj;
+	size_t index_result_set = 0;
+
+	JSRuntime* rt;
+	JSContext* ctx;
+	rt = JS_NewRuntime();
+	ctx = JS_NewContext(rt);
+	{
+		jsoncons::json jin(99.9);
+		std::string eres_test;
+		{
+			std::stringstream sstin;
+			sstin << jin;
+			std::cout << "Serialized JSON: " << sstin.str() << std::endl;
+			eres_test = sstin.str();
+		}
+		{
+			jsoncons::json jin = eres_test;
+			std::stringstream sstin;
+			sstin << jin;
+			std::cout << "Serialized JSON: " << sstin.str() << std::endl;
+			eres_test = sstin.str();
+		}
+
+		std::string eres = "JSON.parse(" + eres_test + ")";
+		JSValue jsv = JS_Eval(ctx, eres.c_str(), eres.size(), "<result>", JS_EVAL_TYPE_GLOBAL);
+		if (JS_IsException(jsv)) {
+			FAIL("Failed to evaluate JavaScript expression");
+			JS_FreeValue(ctx, jsv);
+			JS_FreeContext(ctx);
+			JS_FreeRuntime(rt);
+			return;
+		}
+		jsoncons::json j;
+		toJsonWithVirtual(ctx, jsv, j);
+		std::stringstream sst;
+		sst << j;
+		std::cout << "Serialized JSON: " << sst.str() << std::endl;
+		//std::map<size_t, jsoncons::json> mapj;
+		index_result_set = save_result(mapj, j);
+
+		//REQUIRE(sst.str() == eres_test);
+		JS_FreeValue(ctx, jsv);
+	}
+	JS_FreeContext(ctx);
+	JS_FreeRuntime(rt);
+	size_t index = 0;
+	std::string bucket;
+	jsoncons::json fragment;
+	bool is_array = false;
+	std::vector<std::string> res;
+	while (get_result(mapj, index_result_set, index, bucket, fragment, is_array)) {
+		std::stringstream sst2;
+		sst2 << fragment;
+		std::cout << "Serialized JSON: " << sst2.str() << std::endl;
+		res.push_back(sst2.str());
+		index++;
+	}
+	REQUIRE(index == 1);
+	REQUIRE(res[0] == "99.9");
+}
+
+TEST_CASE("Test aijsondb create result set bucket array", "[domino]") {
+
+	std::map<size_t, jsoncons::json> mapj;
+	size_t index_result_set = 0;
+
+	JSRuntime* rt;
+	JSContext* ctx;
+	rt = JS_NewRuntime();
+	ctx = JS_NewContext(rt);
+	{
+		jsoncons::json jin;
+		{
+			jsoncons::json jb(jsoncons::json_array_arg);
+			jb.push_back("a");
+			jb.push_back("b");
+			jin["bucket1"] = jb;
+		}
+		{
+			jsoncons::json jb(jsoncons::json_array_arg);
+			jb.push_back("c");
+			jb.push_back("d");
+			jin["bucket2"] = jb;
+		}
+		std::string eres_test;
+		{
+			std::stringstream sstin;
+			sstin << jin;
+			std::cout << "Serialized JSON: " << sstin.str() << std::endl;
+			eres_test = sstin.str();
+		}
+		{
+			jsoncons::json jin = eres_test;
+			std::stringstream sstin;
+			sstin << jin;
+			std::cout << "Serialized JSON: " << sstin.str() << std::endl;
+			eres_test = sstin.str();
+		}
+
+		std::string eres = "JSON.parse(" + eres_test + ")";
+		JSValue jsv = JS_Eval(ctx, eres.c_str(), eres.size(), "<result>", JS_EVAL_TYPE_GLOBAL);
+		if (JS_IsException(jsv)) {
+			FAIL("Failed to evaluate JavaScript expression");
+			JS_FreeValue(ctx, jsv);
+			JS_FreeContext(ctx);
+			JS_FreeRuntime(rt);
+			return;
+		}
+		jsoncons::json j;
+		toJsonWithVirtual(ctx, jsv, j);
+		std::stringstream sst;
+		sst << j;
+		std::cout << "Serialized JSON: " << sst.str() << std::endl;
+		//std::map<size_t, jsoncons::json> mapj;
+		index_result_set = save_result(mapj, j);
+
+		//REQUIRE(sst.str() == eres_test);
+		JS_FreeValue(ctx, jsv);
+	}
+	JS_FreeContext(ctx);
+	JS_FreeRuntime(rt);
+	size_t index = 0;
+	std::string bucket;
+	jsoncons::json fragment;
+	bool is_array = false;
+	std::vector<std::string> res;
+	while (get_result(mapj, index_result_set, index, bucket, fragment, is_array)) {
+		std::stringstream sst2;
+		sst2 << fragment;
+		std::cout << "Serialized JSON: " << sst2.str() << std::endl;
+		res.push_back(sst2.str());
+		REQUIRE(is_array == true);
+		index++;
+	}
+	REQUIRE(index == 4);
+	REQUIRE(res[0] == "\"a\"");
+	REQUIRE(res[1] == "\"b\"");
+	REQUIRE(res[2] == "\"c\"");
+	REQUIRE(res[3] == "\"d\"");
+}

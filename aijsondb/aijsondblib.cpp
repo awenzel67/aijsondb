@@ -684,3 +684,152 @@ void clear_importer(std::unique_ptr<IBulkImporter>& importer) {
 	std::lock_guard<std::mutex> lock(mtx_importer);
 	importers.clear();
 }
+
+
+std::map<size_t, jsoncons::json> result_set_map;
+
+int aijsondb_query_result_set(const char* query) {
+
+	std::lock_guard<std::mutex> lock(mtx);
+	JSRuntime* rt;
+	JSContext* ctx;
+	rt = JS_NewRuntime();
+	ctx = JS_NewCustomContext(rt);
+	int ifu = init_functions(ctx);
+	if (ifu != 0) return -1;
+
+	int init = aijsondb_index(ctx);
+	if (init != 0) 
+		return -1;
+
+	int nbuffer = 1014;
+	char buffer[1024];
+	int ret = 0;
+	{
+		std::string query_str(query);
+		JSValue jsv = JS_Eval(ctx, query_str.c_str(), query_str.size(), "<query>", JS_EVAL_TYPE_GLOBAL);
+		//int32_t int_result;
+		//JS_ToInt32(ctx, &int_result, jsv);
+		//printf("ih==%d\n", int_result);
+		if (JS_IsException(jsv)) {
+			js_error_message(ctx, jsv, buffer, nbuffer);
+			last_error_message = buffer;
+			printf("%s\n", buffer);
+			JS_FreeValue(ctx, jsv);
+			JS_FreeContext(ctx);
+			JS_FreeRuntime(rt);
+			return -1;
+		}
+		else {
+			JS_FreeValue(ctx, jsv);
+		}
+	}
+
+	{
+		const char* eres = "result";
+		JSValue jsv = JS_Eval(ctx, eres, strlen(eres), "<result>", JS_EVAL_TYPE_GLOBAL);
+		if (JS_IsException(jsv)) {
+			js_error_message(ctx, jsv, buffer, nbuffer);
+			last_error_message = buffer;
+			JS_FreeValue(ctx, jsv);
+			JS_FreeContext(ctx);
+			JS_FreeRuntime(rt);
+			return -1;
+		}
+		else {
+			//	ResultRows rows;
+			//	jsoncons::json j;
+			//	walk_objects_and_resolve(ctx,jsv,nullptr,rows,j);
+			jsoncons::json j;
+			toJsonWithVirtual(ctx, jsv, j);
+			if (!j.is_null())
+			{
+				ret=save_result(result_set_map, j);
+			}
+			else
+			{
+				ret = -1;
+				const char* error_message = "result is undefined";
+				if (strlen(error_message) < nbuffer - 1) {
+					strcpy(buffer, error_message);
+					last_error_message = buffer;
+				}
+			}
+			//JS_FreeCString(ctx, gh);
+		}
+	}
+	//printf("Hello vor Ende\n");
+	JS_FreeContext(ctx);
+	JS_FreeRuntime(rt);
+	return ret;
+}
+
+int aijsondb_result_set_next(unsigned int index_result_set, unsigned int index_next, char* bucket, int nbucket, char* buffer, int nbuffer, int* isArray)
+{
+	std::lock_guard<std::mutex> lock(mtx);
+	if (nbucket <= 0)
+		return -1;
+	if (nbuffer <= 0)
+		return -1;
+
+	*bucket = '\0';
+	*buffer = '\0';
+	*isArray = 0;
+
+
+	std::string sbucket;
+	bool is_array=false;
+	jsoncons::json fragment;
+	bool res=get_result(result_set_map, index_result_set, index_next, sbucket, fragment, is_array);
+	if (!res)
+		return -1;
+	if (sbucket.size() > 0)
+	{
+		if (sbucket.size() < nbucket)
+		{
+			strcpy(bucket, sbucket.c_str());
+		}
+		else
+		{
+			return -1;
+		}
+	}
+	if (is_array)
+	{
+		*isArray = 1;
+	}
+
+	std::stringstream sst;
+	sst << fragment;
+	std::string sfragment = sst.str();
+
+	if (sfragment.size() > 0)
+	{
+		if (sfragment.size() < nbuffer)
+		{
+			strcpy(bucket, sbucket.c_str());
+		}
+		else
+		{
+			return -1;
+		}
+	}
+
+	return 0;
+}
+
+int aijsondb_result_set_clear(unsigned int index_result_set)
+{
+	std::lock_guard<std::mutex> lock(mtx);
+
+	auto df = result_set_map.find(index_result_set);
+	if (df != result_set_map.end())
+	{
+		auto err=result_set_map.erase(index_result_set);
+		if (err)
+		{
+			return 0;
+		}
+	}
+	return -1;
+}

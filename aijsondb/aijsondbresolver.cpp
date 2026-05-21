@@ -226,6 +226,94 @@ void toJsonWithVirtual(JSContext* ctx, const JSValue& jsv, jsoncons::json& j)
 	}
 }
 
+
+size_t save_result(std::map<size_t,jsoncons::json>& mapj, jsoncons::json& j)
+{
+	if (mapj.size() == 0)
+	{
+		mapj[0] = j;
+		return 0;
+	}
+
+	size_t max_index = 0;
+	for (const auto& kv : mapj)
+	{
+		if(kv.first> max_index)
+		{
+			max_index = kv.first;
+		}
+	}
+	max_index++;
+	mapj[max_index] = j;
+	return max_index;
+}
+
+bool get_result(std::map<size_t, jsoncons::json>& mapj,size_t result_set_index, size_t index,std::string& bucket, jsoncons::json& value,bool& isArray)
+{
+	bucket = "";
+	isArray = false;
+	value = jsoncons::json::null();
+
+	auto result = mapj.find(result_set_index);
+	if (result == mapj.end())
+		return false;
+    
+
+	auto& result_json = result->second;
+	if(result_json.is_array())
+	{
+		isArray = true;
+		if (index < result_json.size())
+		{
+			value = result_json[index];
+			return true;
+		}
+	}
+	else if (result_json.is_object())
+	{
+		size_t index_from = 0;
+		size_t index_to = 0;
+		for (auto& kv : result_json.object_range())
+		{
+			if (kv.value().is_array())
+			{
+				index_to = index_from + kv.value().size();
+				if (index_from <= index && index < index_to)
+				{
+					bucket = kv.key();
+					value = kv.value()[index-index_from];
+					isArray = true;
+					return true;
+				}
+			}
+			else
+			{
+				index_to = index_from + 1;
+				if (index_from <= index && index < index_to)
+				{
+					bucket = kv.key();
+					value = kv.value();
+					return true;
+				}
+			}
+			index_from = index_to;
+		}
+	}
+	else
+	{
+		if (index > 0) {
+			return false;
+		}
+		else
+		{
+			value = result_json;
+			return true;
+		}
+	}
+	return false;
+}
+
+
 void test_toJson(JSContext* ctx, const JSValue& jsv)
 {
 	jsoncons::json j;
