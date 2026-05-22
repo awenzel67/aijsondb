@@ -842,3 +842,124 @@ TEST_CASE("Test aijsondb create result set bucket array", "[domino]") {
 	REQUIRE(res[2] == "\"c\"");
 	REQUIRE(res[3] == "\"d\"");
 }
+
+
+TEST_CASE("Test Domino query bucket object result set object", "[domino]") {
+	std::string path_data = test_data_dir();
+	path_data += "500 KB_V3.json";
+	std::string path_schema = test_data_dir();
+	path_schema += "employeeSchemaDescription_V3.json";
+	int res = aijsondb_load_data(path_data.c_str(), path_schema.c_str());
+	REQUIRE(res == 0);
+	char buffer[1024];
+	int nbuffer = 1024;
+	res = aijsondb_query_result_set(query_test1);
+	REQUIRE(res == 0);
+	char bucket[256];
+	int nbucket = 265;
+	bucket[0] = '\0';
+	int is_array = 0;
+	int index_result = 0;
+	while (aijsondb_result_set_next(res, index_result, bucket, nbucket, buffer, nbuffer, &is_array)==0)
+	{
+		jsoncons::json j = jsoncons::json::parse(buffer);
+		REQUIRE(j["id"] == "E00001");
+		REQUIRE(is_array==0);
+		REQUIRE(strlen(bucket) == 0);
+		index_result++;
+	}
+	REQUIRE(index_result == 1);
+	int is_clear=aijsondb_result_set_clear(res);
+	REQUIRE(is_clear == 0);
+}
+
+
+
+TEST_CASE("Test Domino query bucket object result set length", "[domino]") {
+	std::string path_data = test_data_dir();
+	path_data += "500 KB_V3.json";
+	std::string path_schema = test_data_dir();
+	path_schema += "employeeSchemaDescription_V3.json";
+	int res = aijsondb_load_data(path_data.c_str(), path_schema.c_str());
+	REQUIRE(res == 0);
+	char buffer[1024];
+	int nbuffer = 1024;
+	res = aijsondb_query_result_set("result=data.employees.length");
+	REQUIRE(res == 0);
+	char bucket[256];
+	int nbucket = 265;
+	bucket[0] = '\0';
+	int is_array = 0;
+	int index_result = 0;
+	while (aijsondb_result_set_next(res, index_result, bucket, nbucket, buffer, nbuffer, &is_array) == 0)
+	{
+		jsoncons::json j = jsoncons::json::parse(buffer);
+		REQUIRE(j.as<int>()==201);
+		REQUIRE(is_array == 0);
+		REQUIRE(strlen(bucket) == 0);
+		index_result++;
+	}
+	REQUIRE(index_result == 1);
+	int is_clear = aijsondb_result_set_clear(res);
+	REQUIRE(is_clear == 0);
+}
+
+TEST_CASE("Test Domino query bucket object result set array", "[domino]") {
+	std::string path_data = test_data_dir();
+	path_data += "500 KB_V3.json";
+	std::string path_schema = test_data_dir();
+	path_schema += "employeeSchemaDescription_V3.json";
+	int res = aijsondb_load_data(path_data.c_str(), path_schema.c_str());
+	REQUIRE(res == 0);
+	char buffer[1024];
+	int nbuffer = 1024;
+	res = aijsondb_query_result_set("result=data.employees");
+	REQUIRE(res == 0);
+	char bucket[256];
+	int nbucket = 265;
+	bucket[0] = '\0';
+	int is_array = 0;
+	int index_result = 0;
+	while (aijsondb_result_set_next(res, index_result, bucket, nbucket, buffer, nbuffer, &is_array) == 0)
+	{
+		jsoncons::json j = jsoncons::json::parse(buffer);
+		REQUIRE(is_array == 1);
+		std::string sbucket = bucket;
+		REQUIRE(sbucket.size()==0);
+		index_result++;
+	}
+	REQUIRE(index_result == 201);
+	int is_clear = aijsondb_result_set_clear(res);
+	REQUIRE(is_clear == 0);
+}
+
+
+
+TEST_CASE("Test Domino query bucket object result set bucket array", "[domino]") {
+	std::string path_data = test_data_dir();
+	path_data += "500 KB_V3.json";
+	std::string path_schema = test_data_dir();
+	path_schema += "employeeSchemaDescription_V3.json";
+	int res = aijsondb_load_data(path_data.c_str(), path_schema.c_str());
+	REQUIRE(res == 0);
+	char buffer[1024];
+	int nbuffer = 1024;
+	res = aijsondb_query_result_set("result={\"x\":data.employees}");
+	REQUIRE(res == 0);
+	char bucket[256];
+	int nbucket = 265;
+	bucket[0] = '\0';
+	int is_array = 0;
+	int index_result = 0;
+	while (aijsondb_result_set_next(res, index_result, bucket, nbucket, buffer, nbuffer, &is_array) == 0)
+	{
+		jsoncons::json j = jsoncons::json::parse(buffer);
+		REQUIRE(is_array == 1);
+		std::string sbucket = bucket;
+		REQUIRE(sbucket == "x");
+		index_result++;
+	}
+	REQUIRE(index_result == 201);
+	int is_clear = aijsondb_result_set_clear(res);
+	REQUIRE(is_clear == 0);
+}

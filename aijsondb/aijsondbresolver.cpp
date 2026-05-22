@@ -271,32 +271,60 @@ bool get_result(std::map<size_t, jsoncons::json>& mapj,size_t result_set_index, 
 	}
 	else if (result_json.is_object())
 	{
-		size_t index_from = 0;
-		size_t index_to = 0;
-		for (auto& kv : result_json.object_range())
+		bool rootHasBuckets = false;
 		{
-			if (kv.value().is_array())
+			size_t index_from = 0;
+			size_t index_to = 0;
+			for (auto& kv : result_json.object_range())
 			{
-				index_to = index_from + kv.value().size();
-				if (index_from <= index && index < index_to)
+				if (kv.value().is_array())
 				{
-					bucket = kv.key();
-					value = kv.value()[index-index_from];
-					isArray = true;
-					return true;
+					rootHasBuckets = true;
+					break;
 				}
+			}
+		}
+		
+		if (rootHasBuckets)
+		{
+			size_t index_from = 0;
+			size_t index_to = 0;
+			for (auto& kv : result_json.object_range())
+			{
+				if (kv.value().is_array())
+				{
+					index_to = index_from + kv.value().size();
+					if (index_from <= index && index < index_to)
+					{
+						bucket = kv.key();
+						value = kv.value()[index - index_from];
+						isArray = true;
+						return true;
+					}
+				}
+				else
+				{
+					index_to = index_from + 1;
+					if (index_from <= index && index < index_to)
+					{
+						bucket = kv.key();
+						value = kv.value();
+						return true;
+					}
+				}
+				index_from = index_to;
+			}
+		}
+		else
+		{
+			if (index > 0) {
+				return false;
 			}
 			else
 			{
-				index_to = index_from + 1;
-				if (index_from <= index && index < index_to)
-				{
-					bucket = kv.key();
-					value = kv.value();
-					return true;
-				}
+				value = result_json;
+				return true;
 			}
-			index_from = index_to;
 		}
 	}
 	else

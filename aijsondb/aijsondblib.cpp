@@ -30,6 +30,7 @@ std::mutex mtx;
 static std::map<std::string, std::vector<std::string>> jobject_cache;
 static std::string jobject_cache_schema;
 static std::string last_error_message;
+static std::map<size_t, jsoncons::json> result_set_map;
 
 std::map<std::string, std::vector<std::string>>* get_object_cache() {
 	return &jobject_cache;
@@ -46,6 +47,7 @@ int aijsondb_free_data()
 	std::lock_guard<std::mutex> lock(mtx);
 	jobject_cache.clear();
 	last_error_message.clear();
+	result_set_map.clear();
 	return 0;
 }
 
@@ -685,9 +687,6 @@ void clear_importer(std::unique_ptr<IBulkImporter>& importer) {
 	importers.clear();
 }
 
-
-std::map<size_t, jsoncons::json> result_set_map;
-
 int aijsondb_query_result_set(const char* query) {
 
 	std::lock_guard<std::mutex> lock(mtx);
@@ -744,6 +743,7 @@ int aijsondb_query_result_set(const char* query) {
 			toJsonWithVirtual(ctx, jsv, j);
 			if (!j.is_null())
 			{
+				JS_FreeValue(ctx, jsv);
 				ret=save_result(result_set_map, j);
 			}
 			else
@@ -764,7 +764,7 @@ int aijsondb_query_result_set(const char* query) {
 	return ret;
 }
 
-int aijsondb_result_set_next(unsigned int index_result_set, unsigned int index_next, char* bucket, int nbucket, char* buffer, int nbuffer, int* isArray)
+int aijsondb_result_set_next(int index_result_set,int index_next, char* bucket, int nbucket, char* buffer, int nbuffer, int* isArray)
 {
 	std::lock_guard<std::mutex> lock(mtx);
 	if (nbucket <= 0)
@@ -807,7 +807,7 @@ int aijsondb_result_set_next(unsigned int index_result_set, unsigned int index_n
 	{
 		if (sfragment.size() < nbuffer)
 		{
-			strcpy(bucket, sbucket.c_str());
+			strcpy(buffer, sfragment.c_str());
 		}
 		else
 		{
@@ -818,7 +818,7 @@ int aijsondb_result_set_next(unsigned int index_result_set, unsigned int index_n
 	return 0;
 }
 
-int aijsondb_result_set_clear(unsigned int index_result_set)
+int aijsondb_result_set_clear(int index_result_set)
 {
 	std::lock_guard<std::mutex> lock(mtx);
 

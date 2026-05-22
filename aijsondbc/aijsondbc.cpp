@@ -38,4 +38,14 @@ extern "C" {
 	    strcpy(result_buffer, last_error);
 		return 0;
 	}
+	EXPORT int ffi_aijsondb_query_result_set(const char* query) {
+		return aijsondb_query_result_set(query);
+	}
+	EXPORT int ffi_aijsondb_result_set_next(int index_result_set, int index_next, char* bucket, int nbucket, char* buffer, int nbuffer, int* isArray)
+	{
+		return aijsondb_result_set_next(index_result_set, index_next, bucket, nbucket, buffer, nbuffer, isArray);
+	}
+	EXPORT int ffi_aijsondb_result_set_clear(int index_result_set) {
+		return aijsondb_result_set_clear(index_result_set);
+	}
 }
