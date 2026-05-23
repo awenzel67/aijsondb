@@ -11,6 +11,7 @@
 #include <filesystem>
 #include <memory>
 #include <codecvt>
+#include <OpenXLSX.hpp>
 
 #define SAVE_TEST_DATA 1
 
@@ -997,11 +998,40 @@ TEST_CASE("Test Domino query excel duckdb test_missing_row1_data.test", "[domino
 }
 
 
+
+//bool enable_xml_namespaces();
+
 TEST_CASE("Test Domino query excel duckdb with_xml_prefix", "[domino]") {
+	using namespace OpenXLSX;
 	jsoncons::json jvalue;
 	jsoncons::json jschema;
+	//enable_xml_namespaces();
+	//UseRandomIDs();
 	int load = test_excel("gdal/with_xml_prefix.xlsx", jvalue, jschema);
-	REQUIRE(load == -1);
+	REQUIRE(load == 0);
+#if SAVE_TEST_DATA
+	{
+		std::ofstream ofs("c:/del/output.json");
+		// Write JSON to file with pretty-print formatting
+		ofs << jsoncons::pretty_print(jvalue);
+	}
+	{
+		std::ofstream ofs("c:/del/output_schema.json");
+		// Write JSON to file with pretty-print formatting
+		ofs << jsoncons::pretty_print(jschema);
+	}
+#endif
+	REQUIRE(jvalue.size() == 1);
+	{
+		auto sheet = jvalue["sheet"];
+		REQUIRE(sheet.size() == 1);
+		auto valueA = sheet[0]["Col1"].as<std::string>();
+		REQUIRE(valueA == "foo");
+		auto valueB = sheet[0]["Col2"].as<std::string>();
+		REQUIRE(valueB == "bar");
+	}
+	//UseSequentialIDs();
+	//disable_xml_namespaces();
 }
 
 void check_string_column(const jsoncons::json& jvalue, const jsoncons::json& jschema, const std::string& table, const std::vector<std::string>& hfields, const std::vector<size_t>& stringcols, const std::vector<std::string>& testdata) {
@@ -1278,28 +1308,6 @@ TEST_CASE("Test Domino query excel basic", "[domino]") {
 	REQUIRE(jvalue.size() > 0);
 }
 
-// TODO verbundene Spalten/zeilen richtig behandeln
-TEST_CASE("Test Domino query excel collapsed_cells_2", "[domino]") {
-	jsoncons::json jvalue;
-	jsoncons::json jschema;
-	int load = test_excel("collapsed_cells.xlsx", jvalue, jschema);
-	REQUIRE(load == 0);
-#if SAVE_TEST_DATA
-	{
-		std::ofstream ofs("c:/del/output.json");
-		// Write JSON to file with pretty-print formatting
-		ofs << jsoncons::pretty_print(jvalue);
-	}
-	{
-		std::ofstream ofs("c:/del/output_schema.json");
-		// Write JSON to file with pretty-print formatting
-		ofs << jsoncons::pretty_print(jschema);
-	}
-#endif
-	REQUIRE(jvalue.size() > 0);
-}
-
-// TODO leere Spalten am Anfang ignorieren
 TEST_CASE("Test Domino query excel two_sheets", "[domino]") {
 	jsoncons::json jvalue;
 	jsoncons::json jschema;
@@ -1450,7 +1458,7 @@ TEST_CASE("Test Domino query excel time_data_with_blanks_no_leading_zero", "[dom
 	}
 }
 
-// TODO wertzellen über mehrere Zeile/Spalten
+
 TEST_CASE("Test Domino query excel collapsed_cells_jagged", "[domino]") {
 	jsoncons::json jvalue;
 	jsoncons::json jschema;
@@ -1665,6 +1673,54 @@ TEST_CASE("Test Domino query excel collapsed_cells", "[domino]") {
 	}
 #endif
 	REQUIRE(jvalue.size() == 2);
+	{
+		auto sheet = jvalue["Sheet1"];
+		REQUIRE(sheet.size() == 5);
+		std::string table = "Sheet1";
+		{
+			std::string col = "col1";
+			std::string cold = "col1";
+
+			REQUIRE(sheet[0][col].as_string() == "a");
+			REQUIRE(sheet[3][col].as_string() == "1x2");
+			REQUIRE(sheet[4][col].as_string() == "1x2");
+
+
+			REQUIRE(check_schema_type(jschema, table, col, "string"));
+			REQUIRE(check_schema_description(jschema, table, col, cold));
+		}
+		{
+			std::string col = "col4";
+			std::string cold = "col4";
+
+			REQUIRE(sheet[0][col].as_string() == "d");
+			REQUIRE(sheet[3][col].as_string() == "2x2");
+			REQUIRE(sheet[4][col].as_string() == "2x2");
+
+			REQUIRE(check_schema_type(jschema, table, col, "string"));
+			REQUIRE(check_schema_description(jschema, table, col, cold));
+		}
+	}
+	{
+		auto sheet = jvalue["MySheet"];
+		REQUIRE(sheet.size() == 1);
+		std::string table = "MySheet";
+		{
+			std::string col = "X";
+			std::string cold = "X";
+			REQUIRE(sheet[0][col].as_string() == "foo");
+			REQUIRE(check_schema_type(jschema, table, col, "string"));
+			REQUIRE(check_schema_description(jschema, table, col, cold));
+		}
+		{
+			std::string col = "Y";
+			std::string cold = "Y";
+
+			REQUIRE(sheet[0][col].as_string() == "bar");
+			REQUIRE(check_schema_type(jschema, table, col, "string"));
+			REQUIRE(check_schema_description(jschema, table, col, cold));
+		}
+	}
 }
 
 

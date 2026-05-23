@@ -20,10 +20,50 @@
 
 typedef std::tuple<int, std::vector<std::string>> HeaderInfo;
 
+/*
 size_t countDistinct(const std::vector<std::string>& vec) {
     //std::set<std::string> distinctSet(vec.begin(), vec.end());
     return vec.size();
 }
+*/
+
+std::string getStringFromCell(XLCell& pcell){
+    const auto& cell = pcell.value();
+    std::string ret = cell.getString();
+    if (ret.empty())
+    {
+        std::ostringstream ostr;
+        pcell.print(ostr);
+        std::string xml = ostr.str();
+        std::string output;
+        output.reserve(xml.size());
+        bool tagstart = false;
+        bool isText = false;
+        for (char ch : xml) {
+            switch (ch) {
+            case '<': tagstart = true; isText = false; break;
+            case '>': tagstart = false; break;
+            case ' ' :
+            case '\r':
+            case '\n': {
+                if (isText) {
+                    output.push_back(ch);
+                }
+            }
+            break;
+            default: {
+                if (!tagstart) {
+                    isText = true;
+                    output.push_back(ch);
+                }
+                }
+                break;
+            }
+        }
+        return output;
+    }
+    return ret;
+};
 
 bool getHeaders2Plus(XLDocument& doc, XLWorksheet& ws, std::map<int,HeaderInfo>& headers, std::vector<std::vector<E_EXCEL_LOGICAL_TYPE>>& typecols)
 {
@@ -54,8 +94,9 @@ bool getHeaders2Plus(XLDocument& doc, XLWorksheet& ws, std::map<int,HeaderInfo>&
             // XLCellValueProxy ist implizit konvertierbar zu XLCellValue
             if (cell.type() == OpenXLSX::XLValueType::String)
             {
-                //std::clog << cell.to_string() << std::endl;
-                headerRow.push_back(cell.getString());
+              
+                headerRow.push_back(getStringFromCell(ccell));
+                
                 icollast = icell;
                 if (icolFirstNonEmpty == -1) {
                     icolFirstNonEmpty = icell;
@@ -80,7 +121,7 @@ bool getHeaders2Plus(XLDocument& doc, XLWorksheet& ws, std::map<int,HeaderInfo>&
 
         if (isHeader)
         {
-            if ( countDistinct(headerRowMax) < countDistinct(headerRow))
+            if ( headerRowMax.size() < headerRow.size())
             {
                 headerRowMax = headerRow;
                 irowHeader = irow;
@@ -224,6 +265,8 @@ std::string make_individal_header(std::map<string,size_t>& headers,const std::st
 
 bool ExcelImporterPlus::import(const std::string& filepath, std::map<std::string, std::vector<std::string>>& cache, std::string& schema, std::string& error)
 {
+    enable_xml_namespaces();
+    UseRandomIDs();
     cache.clear();
     schema.clear();
     XLDocument doc;
@@ -239,6 +282,8 @@ bool ExcelImporterPlus::import(const std::string& filepath, std::map<std::string
     catch (std::exception& ex)
     {
         error = ex.what();
+        UseSequentialIDs();
+        disable_xml_namespaces();
         return false;
     }
 
@@ -373,7 +418,14 @@ bool ExcelImporterPlus::import(const std::string& filepath, std::map<std::string
                     }
                     else if (target_value_type == E_EXCEL_LOGICAL_TYPE::STRING)
                     {
-                        jrow[header] = cell.getString();
+                        if (source_value_type == E_EXCEL_LOGICAL_TYPE::EMPTY)
+                        {
+                            jrow[header] = "";
+                        }
+                        else
+                        {
+                            jrow[header] = getStringFromCell(ccell);
+                        }
                     }
                     else if (target_value_type == E_EXCEL_LOGICAL_TYPE::BOOLEAN)
                     {
@@ -419,7 +471,7 @@ bool ExcelImporterPlus::import(const std::string& filepath, std::map<std::string
                                 jrow[header] = jsoncons::json::null();
                             }
                         }
-                        else {
+                        else if (source_value_type == E_EXCEL_LOGICAL_TYPE::DOUBLE) {
                             try {
                                 XLCellValue xcv = cell;
                                 jrow[header] = std::lround(xcv.getDouble());
@@ -430,7 +482,11 @@ bool ExcelImporterPlus::import(const std::string& filepath, std::map<std::string
                                 jrow[header] = jsoncons::json::null();
                             }
                         }
-
+                        else
+                        {
+                            //cerr << e.what() << std::endl;
+                            jrow[header] = jsoncons::json::null();
+                        }
                     }
                     else if (target_value_type == E_EXCEL_LOGICAL_TYPE::DOUBLE)
                     {
@@ -439,7 +495,9 @@ bool ExcelImporterPlus::import(const std::string& filepath, std::map<std::string
                         {
                             jrow[header] = jsoncons::json::null();
                         }
-                        else
+                        else if (source_value_type == E_EXCEL_LOGICAL_TYPE::INTEGER ||
+                            source_value_type == E_EXCEL_LOGICAL_TYPE::DOUBLE
+                            )
                         {
                             try {
                                 XLCellValue xcv = cell;
@@ -449,6 +507,10 @@ bool ExcelImporterPlus::import(const std::string& filepath, std::map<std::string
                             {
                                 jrow[header] = jsoncons::json::null();
                             }
+                        }
+                        else
+                        {
+                            jrow[header] = jsoncons::json::null();
                         }
                     }
                     else if (target_value_type == E_EXCEL_LOGICAL_TYPE::TIME)
@@ -592,6 +654,8 @@ bool ExcelImporterPlus::import(const std::string& filepath, std::map<std::string
     auto duration = std::chrono::duration_cast<std::chrono::microseconds>(stop - start);
     // std::cout << "Time taken: " << duration.count() * 1.0 / 1000.0 / 1000.0 << " microseconds" << std::endl;
     // std::clog << "Processing complete" << std::endl;
+    UseSequentialIDs();
+    disable_xml_namespaces();
     return true;
 
 }
