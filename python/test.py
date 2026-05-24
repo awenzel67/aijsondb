@@ -18,7 +18,7 @@ def query_data_javascript_qj():
     #cschema=ctypes.c_char_p(b"C:/del/output_utf8_schema.json")
 
 
-    with open("query_kita.txt", "r", encoding="utf-8") as file:
+    with open("query.txt", "r", encoding="utf-8") as file:
         content = file.read()
     
     bquery=content.encode()
