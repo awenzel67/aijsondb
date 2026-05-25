@@ -19,11 +19,11 @@ def query_data_javascript_qj():
     elif system=="Linux":
       libObject=ctypes.CDLL('../build/libaijsondbc.so')
 
-    remove_if_exists("C:/del/output_kita_utf8.json")
-    cdata = ctypes.c_char_p(b"C:/del/output_kita_utf8.json")
-    remove_if_exists("C:/del/output_kita_utf8_schema.json")
-    cschema=ctypes.c_char_p(b"C:/del/output_kita_utf8_schema.json")
-    cexcel=ctypes.c_char_p(b"C:/NHKI/data/talktodataexcel/kitaliste-nov-2025.xlsx")
+    remove_if_exists("../data/output_kita_utf8.json")
+    cdata = ctypes.c_char_p(b"../data/output_kita_utf8.json")
+    remove_if_exists("../data/output_kita_utf8_schema.json")
+    cschema=ctypes.c_char_p(b"../data/output_kita_utf8_schema.json")
+    cexcel=ctypes.c_char_p(b"../data/kitaliste-nov-2025.xlsx")
 
     with open("query_kita.txt", "r", encoding="utf-8") as file:
         content = file.read()
