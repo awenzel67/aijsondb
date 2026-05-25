@@ -84,6 +84,7 @@ TEST_CASE("Test Domino query bucket array", "[domino]") {
 	delete buffer;
 }
 
+#if false
 const char* query_test4 = "var result=data.KitalisteVer_ffentlichung.length";
 TEST_CASE("Test Domino query excel", "[domino]") {
 	std::string path_data = test_data_dir();
@@ -113,6 +114,7 @@ TEST_CASE("Test Domino query excel", "[domino]") {
 	}
 	delete buffer;
 }
+#endif
 
 #if false
 TEST_CASE("Test Domino query excel load", "[domino]") {

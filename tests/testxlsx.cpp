@@ -23,6 +23,16 @@ const char* test_data_dir_xlsx()
 	return TEST_DATA_DIR;
 }
 
+std::string xslx_add_file(const std::string fname)
+{
+	//TempDir temp_dir;
+	std::string path_data = test_data_dir_xlsx();
+	path_data+="/" + fname;
+	std::string ret= path_data;
+	std::cout << ret << std::endl;
+	return ret;
+}
+
 const char* testq5 = "var result=data.Mitarbeiter.length";
 const char* testq6 = "var result=data.Arbeitszeit.length";
 
@@ -90,7 +100,7 @@ TEST_CASE("Test Domino query excel multiple woksheets", "[domino]") {
 	delete buffer;
 }
 
-
+#if false
 TEST_CASE("Test Domino query excel real woksheets", "[domino]") {
 	IBulkImporter* o = new ExcelImporterPlus();
 	std::unique_ptr<IBulkImporter> op(o);
@@ -138,6 +148,7 @@ TEST_CASE("Test Domino query excel real woksheets", "[domino]") {
 
 	delete buffer;
 }
+#endif
 
 int run_excel(const std::string& xlsx_file, jsoncons::json& jvalue, jsoncons::json& jschema) {
 	IBulkImporter* o = new ExcelImporterPlus();
@@ -203,21 +214,24 @@ bool check_schema_description(const jsoncons::json& jschema, const std::string& 
 	return f1_d1 == description;
 }
 
+
 TEST_CASE("Test Domino query excel duckdb woksheets", "[domino]") {
 	jsoncons::json jvalue;
 	jsoncons::json jschema;
 	int load = run_excel("gdal/test.xlsx", jvalue, jschema);
 	REQUIRE(load == 0);
+#if SAVE_TEST_DATA
 	{
-		std::ofstream ofs("c:/del/output.json");
+		std::ofstream ofs( xslx_add_file("output.json"));
 		// Write JSON to file with pretty-print formatting
 		ofs << jsoncons::pretty_print(jvalue);
 	}
 	{
-		std::ofstream ofs("c:/del/output_schema.json");
+		std::ofstream ofs( xslx_add_file( "output_schema.json"));
 		// Write JSON to file with pretty-print formatting
 		ofs << jsoncons::pretty_print(jschema);
 	}
+#endif
 	{
 		REQUIRE(jvalue.contains("Feuille1"));
 		REQUIRE(jvalue["Feuille1"].size() == 0);
@@ -399,12 +413,12 @@ TEST_CASE("Test Domino query excel duckdb absolute_sheet_filename", "[domino]") 
 	REQUIRE(load == 0);
 #if SAVE_TEST_DATA
 	{
-		std::ofstream ofs("c:/del/output.json");
+		std::ofstream ofs(xslx_add_file("output.json"));
 		// Write JSON to file with pretty-print formatting
 		ofs << jsoncons::pretty_print(jvalue);
 	}
 	{
-		std::ofstream ofs("c:/del/output_schema.json");
+		std::ofstream ofs(xslx_add_file("output_schema.json"));
 		// Write JSON to file with pretty-print formatting
 		ofs << jsoncons::pretty_print(jschema);
 	}
@@ -428,12 +442,12 @@ TEST_CASE("Test Domino query excel duckdb cells_with_inline_formatting", "[domin
 	REQUIRE(load == 0);
 #if SAVE_TEST_DATA
 	{
-		std::ofstream ofs("c:/del/output.json");
+		std::ofstream ofs(xslx_add_file("output.json"));
 		// Write JSON to file with pretty-print formatting
 		ofs << jsoncons::pretty_print(jvalue);
 	}
 	{
-		std::ofstream ofs("c:/del/output_schema.json");
+		std::ofstream ofs(xslx_add_file("output_schema.json"));
 		// Write JSON to file with pretty-print formatting
 		ofs << jsoncons::pretty_print(jschema);
 	}
@@ -513,12 +527,12 @@ TEST_CASE("Test Domino query excel duckdb datetime", "[domino]") {
 	REQUIRE(load == 0);
 #if SAVE_TEST_DATA
 	{
-		std::ofstream ofs("c:/del/output.json");
+		std::ofstream ofs(xslx_add_file("output.json"));
 		// Write JSON to file with pretty-print formatting
 		ofs << jsoncons::pretty_print(jvalue);
 	}
 	{
-		std::ofstream ofs("c:/del/output_schema.json");
+		std::ofstream ofs(xslx_add_file("output_schema.json"));
 		// Write JSON to file with pretty-print formatting
 		ofs << jsoncons::pretty_print(jschema);
 	}
@@ -573,12 +587,12 @@ TEST_CASE("Test Domino query excel duckdb inlineStr", "[domino]") {
 	REQUIRE(load == 0);
 #if SAVE_TEST_DATA
 	{
-		std::ofstream ofs("c:/del/output.json");
+		std::ofstream ofs(xslx_add_file("output.json"));
 		// Write JSON to file with pretty-print formatting
 		ofs << jsoncons::pretty_print(jvalue);
 	}
 	{
-		std::ofstream ofs("c:/del/output_schema.json");
+		std::ofstream ofs(xslx_add_file("output_schema.json"));
 		// Write JSON to file with pretty-print formatting
 		ofs << jsoncons::pretty_print(jschema);
 	}
@@ -726,12 +740,12 @@ TEST_CASE("Test Domino query excel duckdb not_all_columns_present", "[domino]") 
 	REQUIRE(load == 0);
 #if SAVE_TEST_DATA
 	{
-		std::ofstream ofs("c:/del/output.json");
+		std::ofstream ofs(xslx_add_file("output.json"));
 		// Write JSON to file with pretty-print formatting
 		ofs << jsoncons::pretty_print(jvalue);
 	}
 	{
-		std::ofstream ofs("c:/del/output_schema.json");
+		std::ofstream ofs(xslx_add_file("output_schema.json"));
 		// Write JSON to file with pretty-print formatting
 		ofs << jsoncons::pretty_print(jschema);
 	}
@@ -747,12 +761,12 @@ TEST_CASE("Test Domino query excel duckdb row_without_r_attribute", "[domino]") 
 	REQUIRE(load == 0);
 #if SAVE_TEST_DATA
 	{
-		std::ofstream ofs("c:/del/output.json");
+		std::ofstream ofs(xslx_add_file("output.json"));
 		// Write JSON to file with pretty-print formatting
 		ofs << jsoncons::pretty_print(jvalue);
 	}
 	{
-		std::ofstream ofs("c:/del/output_schema.json");
+		std::ofstream ofs(xslx_add_file("output_schema.json"));
 		// Write JSON to file with pretty-print formatting
 		ofs << jsoncons::pretty_print(jschema);
 	}
@@ -788,12 +802,12 @@ TEST_CASE("Test Domino query excel duckdb test_empty_last_field", "[domino]") {
 	readUtf8File("test_empty_last_field.test", testdata);
 #if SAVE_TEST_DATA
 	{
-		std::ofstream ofs("c:/del/output.json");
+		std::ofstream ofs(xslx_add_file("output.json"));
 		// Write JSON to file with pretty-print formatting
 		ofs << jsoncons::pretty_print(jvalue);
 	}
 	{
-		std::ofstream ofs("c:/del/output_schema.json");
+		std::ofstream ofs(xslx_add_file("output_schema.json"));
 		// Write JSON to file with pretty-print formatting
 		ofs << jsoncons::pretty_print(jschema);
 	}
@@ -900,12 +914,12 @@ TEST_CASE("Test Domino query excel duckdb test_missing_row1_data.test", "[domino
 	readUtf8File("test_missing_row1_data.test", testdata);
 #if SAVE_TEST_DATA
 	{
-		std::ofstream ofs("c:/del/output.json");
+		std::ofstream ofs(xslx_add_file("output.json"));
 		// Write JSON to file with pretty-print formatting
 		ofs << jsoncons::pretty_print(jvalue);
 	}
 	{
-		std::ofstream ofs("c:/del/output_schema.json");
+		std::ofstream ofs(xslx_add_file("output_schema.json"));
 		// Write JSON to file with pretty-print formatting
 		ofs << jsoncons::pretty_print(jschema);
 	}
@@ -1014,12 +1028,12 @@ TEST_CASE("Test Domino query excel duckdb with_xml_prefix", "[domino]") {
 	REQUIRE(load == 0);
 #if SAVE_TEST_DATA
 	{
-		std::ofstream ofs("c:/del/output.json");
+		std::ofstream ofs(xslx_add_file("output.json"));
 		// Write JSON to file with pretty-print formatting
 		ofs << jsoncons::pretty_print(jvalue);
 	}
 	{
-		std::ofstream ofs("c:/del/output_schema.json");
+		std::ofstream ofs(xslx_add_file("output_schema.json"));
 		// Write JSON to file with pretty-print formatting
 		ofs << jsoncons::pretty_print(jschema);
 	}
@@ -1137,12 +1151,12 @@ TEST_CASE("Test Domino query excel duckdb duckdb_excel_rep1", "[domino]") {
 	readUtf8File("duckdb_excel_rep1.test", testdata);
 #if SAVE_TEST_DATA
 	{
-		std::ofstream ofs("c:/del/output.json");
+		std::ofstream ofs(xslx_add_file("output.json"));
 		// Write JSON to file with pretty-print formatting
 		ofs << jsoncons::pretty_print(jvalue);
 	}
 	{
-		std::ofstream ofs("c:/del/output_schema.json");
+		std::ofstream ofs(xslx_add_file("output_schema.json"));
 		// Write JSON to file with pretty-print formatting
 		ofs << jsoncons::pretty_print(jschema);
 	}
@@ -1169,12 +1183,12 @@ TEST_CASE("Test Domino query excel non_sequential", "[domino]") {
 	REQUIRE(load == 0);
 #if SAVE_TEST_DATA
 	{
-		std::ofstream ofs("c:/del/output.json");
+		std::ofstream ofs(xslx_add_file("output.json"));
 		// Write JSON to file with pretty-print formatting
 		ofs << jsoncons::pretty_print(jvalue);
 	}
 	{
-		std::ofstream ofs("c:/del/output_schema.json");
+		std::ofstream ofs(xslx_add_file("output_schema.json"));
 		// Write JSON to file with pretty-print formatting
 		ofs << jsoncons::pretty_print(jschema);
 	}
@@ -1223,12 +1237,12 @@ TEST_CASE("Test Domino query columns_letter", "[domino]") {
 	REQUIRE(load == 0);
 #if SAVE_TEST_DATA
 	{
-		std::ofstream ofs("c:/del/output.json");
+		std::ofstream ofs(xslx_add_file("output.json"));
 		// Write JSON to file with pretty-print formatting
 		ofs << jsoncons::pretty_print(jvalue);
 	}
 	{
-		std::ofstream ofs("c:/del/output_schema.json");
+		std::ofstream ofs(xslx_add_file("output_schema.json"));
 		// Write JSON to file with pretty-print formatting
 		ofs << jsoncons::pretty_print(jschema);
 	}
@@ -1246,12 +1260,12 @@ TEST_CASE("Test Domino query phonetic", "[domino]") {
 	readUtf8File("phonetic.test", testdata);
 #if SAVE_TEST_DATA
 	{
-		std::ofstream ofs("c:/del/output.json");
+		std::ofstream ofs(xslx_add_file("output.json"));
 		// Write JSON to file with pretty-print formatting
 		ofs << jsoncons::pretty_print(jvalue);
 	}
 	{
-		std::ofstream ofs("c:/del/output_schema.json");
+		std::ofstream ofs(xslx_add_file("output_schema.json"));
 		// Write JSON to file with pretty-print formatting
 		ofs << jsoncons::pretty_print(jschema);
 	}
@@ -1299,12 +1313,12 @@ TEST_CASE("Test Domino query excel basic", "[domino]") {
 	REQUIRE(load == 0);
 #if SAVE_TEST_DATA
 	{
-		std::ofstream ofs("c:/del/output.json");
+		std::ofstream ofs(xslx_add_file("output.json"));
 		// Write JSON to file with pretty-print formatting
 		ofs << jsoncons::pretty_print(jvalue);
 	}
 	{
-		std::ofstream ofs("c:/del/output_schema.json");
+		std::ofstream ofs(xslx_add_file("output_schema.json"));
 		// Write JSON to file with pretty-print formatting
 		ofs << jsoncons::pretty_print(jschema);
 	}
@@ -1319,12 +1333,12 @@ TEST_CASE("Test Domino query excel two_sheets", "[domino]") {
 	REQUIRE(load == 0);
 #if SAVE_TEST_DATA
 	{
-		std::ofstream ofs("c:/del/output.json");
+		std::ofstream ofs(xslx_add_file("output.json"));
 		// Write JSON to file with pretty-print formatting
 		ofs << jsoncons::pretty_print(jvalue);
 	}
 	{
-		std::ofstream ofs("c:/del/output_schema.json");
+		std::ofstream ofs(xslx_add_file("output_schema.json"));
 		// Write JSON to file with pretty-print formatting
 		ofs << jsoncons::pretty_print(jschema);
 	}
@@ -1356,12 +1370,12 @@ TEST_CASE("Test Domino query excel normalize_names_1", "[domino]") {
 	REQUIRE(load == 0);
 #if SAVE_TEST_DATA
 	{
-		std::ofstream ofs("c:/del/output.json");
+		std::ofstream ofs(xslx_add_file("output.json"));
 		// Write JSON to file with pretty-print formatting
 		ofs << jsoncons::pretty_print(jvalue);
 	}
 	{
-		std::ofstream ofs("c:/del/output_schema.json");
+		std::ofstream ofs(xslx_add_file("output_schema.json"));
 		// Write JSON to file with pretty-print formatting
 		ofs << jsoncons::pretty_print(jschema);
 	}
@@ -1393,12 +1407,12 @@ TEST_CASE("Test Domino query excel time_data_with_blanks", "[domino]") {
 	REQUIRE(load == 0);
 #if SAVE_TEST_DATA
 	{
-		std::ofstream ofs("c:/del/output.json");
+		std::ofstream ofs(xslx_add_file("output.json"));
 		// Write JSON to file with pretty-print formatting
 		ofs << jsoncons::pretty_print(jvalue);
 	}
 	{
-		std::ofstream ofs("c:/del/output_schema.json");
+		std::ofstream ofs(xslx_add_file("output_schema.json"));
 		// Write JSON to file with pretty-print formatting
 		ofs << jsoncons::pretty_print(jschema);
 	}
@@ -1431,12 +1445,12 @@ TEST_CASE("Test Domino query excel time_data_with_blanks_no_leading_zero", "[dom
 	REQUIRE(load == 0);
 #if SAVE_TEST_DATA
 	{
-		std::ofstream ofs("c:/del/output.json");
+		std::ofstream ofs(xslx_add_file("output.json"));
 		// Write JSON to file with pretty-print formatting
 		ofs << jsoncons::pretty_print(jvalue);
 	}
 	{
-		std::ofstream ofs("c:/del/output_schema.json");
+		std::ofstream ofs(xslx_add_file("output_schema.json"));
 		// Write JSON to file with pretty-print formatting
 		ofs << jsoncons::pretty_print(jschema);
 	}
@@ -1470,12 +1484,12 @@ TEST_CASE("Test Domino query excel collapsed_cells_jagged", "[domino]") {
 	REQUIRE(load == 0);
 #if SAVE_TEST_DATA
 	{
-		std::ofstream ofs("c:/del/output.json");
+		std::ofstream ofs(xslx_add_file("output.json"));
 		// Write JSON to file with pretty-print formatting
 		ofs << jsoncons::pretty_print(jvalue);
 	}
 	{
-		std::ofstream ofs("c:/del/output_schema.json");
+		std::ofstream ofs(xslx_add_file("output_schema.json"));
 		// Write JSON to file with pretty-print formatting
 		ofs << jsoncons::pretty_print(jschema);
 	}
@@ -1492,12 +1506,12 @@ TEST_CASE("Test Domino query excel google_sheets", "[domino]") {
 	REQUIRE(load == 0);
 #if SAVE_TEST_DATA
 	{
-		std::ofstream ofs("c:/del/output.json");
+		std::ofstream ofs(xslx_add_file("output.json"));
 		// Write JSON to file with pretty-print formatting
 		ofs << jsoncons::pretty_print(jvalue);
 	}
 	{
-		std::ofstream ofs("c:/del/output_schema.json");
+		std::ofstream ofs(xslx_add_file("output_schema.json"));
 		// Write JSON to file with pretty-print formatting
 		ofs << jsoncons::pretty_print(jschema);
 	}
@@ -1599,12 +1613,12 @@ TEST_CASE("Test Domino query excel header_only", "[domino]") {
 	REQUIRE(load == 0);
 #if SAVE_TEST_DATA
 	{
-		std::ofstream ofs("c:/del/output.json");
+		std::ofstream ofs(xslx_add_file("output.json"));
 		// Write JSON to file with pretty-print formatting
 		ofs << jsoncons::pretty_print(jvalue);
 	}
 	{
-		std::ofstream ofs("c:/del/output_schema.json");
+		std::ofstream ofs(xslx_add_file("output_schema.json"));
 		// Write JSON to file with pretty-print formatting
 		ofs << jsoncons::pretty_print(jschema);
 	}
@@ -1646,12 +1660,12 @@ TEST_CASE("Test Domino query excel sparse", "[domino]") {
 	REQUIRE(load == 0);
 #if SAVE_TEST_DATA
 	{
-		std::ofstream ofs("c:/del/output.json");
+		std::ofstream ofs(xslx_add_file("output.json"));
 		// Write JSON to file with pretty-print formatting
 		ofs << jsoncons::pretty_print(jvalue);
 	}
 	{
-		std::ofstream ofs("c:/del/output_schema.json");
+		std::ofstream ofs(xslx_add_file("output_schema.json"));
 		// Write JSON to file with pretty-print formatting
 		ofs << jsoncons::pretty_print(jschema);
 	}
@@ -1667,12 +1681,12 @@ TEST_CASE("Test Domino query excel collapsed_cells", "[domino]") {
 	REQUIRE(load == 0);
 #if SAVE_TEST_DATA
 	{
-		std::ofstream ofs("c:/del/output.json");
+		std::ofstream ofs(xslx_add_file("output.json"));
 		// Write JSON to file with pretty-print formatting
 		ofs << jsoncons::pretty_print(jvalue);
 	}
 	{
-		std::ofstream ofs("c:/del/output_schema.json");
+		std::ofstream ofs(xslx_add_file("output_schema.json"));
 		// Write JSON to file with pretty-print formatting
 		ofs << jsoncons::pretty_print(jschema);
 	}

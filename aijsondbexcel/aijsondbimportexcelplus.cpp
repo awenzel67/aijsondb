@@ -265,7 +265,8 @@ std::string make_individal_header(std::map<string,size_t>& headers,const std::st
 bool ExcelImporterPlus::import(const std::string& filepath, std::map<std::string, std::vector<std::string>>& cache, std::string& schema, std::string& error)
 {
     //enable_xml_namespaces();
-    UseRandomIDs();
+    //OpenXLSX::UseRandomIDs();
+    //OpenXLSX_UseRandomIDs();
     cache.clear();
     schema.clear();
     XLDocument doc;
