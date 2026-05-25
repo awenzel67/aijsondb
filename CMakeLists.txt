@@ -12,13 +12,20 @@ set(IGNORE_ME ${CMAKE_C_COMPILER}) # Suppress CMake warning message
 # ============================================================================
 set(OPENXLSX_CREATE_DOCS           OFF)
 set(OPENXLSX_BUILD_SAMPLES         OFF)
+if (MSVC)
 set(         BUILD_SHARED_LIBS     OFF)
+else()
+set(         BUILD_SHARED_LIBS     ON)
+endif()
+#set ( OPENXLSX_MONOLITHIC_LIBRARY ON)
 
 add_subdirectory( OpenXLSX )
 
 if (MSVC)
     # warning level 4
     add_compile_options(/experimental:c11atomics /std:c11 /bigobj)
+else()
+   add_compile_options(-fPIC)
 endif()
 
 set(ENV{TEST_DOMINO_DATA} ${PROJECT_SOURCE_DIR}/data)
@@ -30,11 +37,14 @@ include_directories(${PROJECT_SOURCE_DIR}/aijsondb  ${PROJECT_SOURCE_DIR}/third_
 add_library( 
     aijsondbexcellib   
     STATIC 
-    aijsondbexcel/aijsondbimportexcel.cpp
- "aijsondbexcel/aijsondbimportexcelplus.cpp" "aijsondbexcel/excelhelper.cpp")
+   #aijsondbexcel/aijsondbimportexcel.cpp
+   aijsondbexcel/aijsondbimportexcelplus.cpp 
+   aijsondbexcel/excelhelper.cpp)
 target_link_libraries(aijsondbexcellib PRIVATE OpenXLSX::OpenXLSX)
 target_include_directories(aijsondbexcellib PRIVATE ${OpenXLSX_INCLUDES})
-
+set_target_properties(aijsondbexcellib PROPERTIES
+  INSTALL_RPATH_USE_LINK_PATH TRUE
+)
 
 add_executable(aijsondbcli)
 
@@ -47,6 +57,10 @@ target_sources(aijsondbcli
  "aijsondb/aijsondbresolver.cpp" "aijsondb/aijsondbloadwithimporter.cpp")
 
 target_link_libraries(aijsondbcli PRIVATE aijsondbexcellib)
+target_include_directories(aijsondbcli PRIVATE ${OpenXLSX_INCLUDES})
+set_target_properties(aijsondbcli PROPERTIES
+  INSTALL_RPATH_USE_LINK_PATH TRUE
+)
 
 add_library( 
     aijsondbc   SHARED aijsondbc/aijsondbc.cpp aijsondb/aijsondblib.cpp aijsondb/aijsondbindex.cpp third_party/quickjs-ng/quickjs-amalgam.c 
@@ -79,14 +93,19 @@ target_sources(aijsontests
     tests/test.cpp
     tests/testxlsx.cpp
     aijsondb/aijsondblib.cpp
-     aijsondb/aijsondbindex.cpp
+    aijsondb/aijsondbindex.cpp
     third_party/quickjs-ng/quickjs-amalgam.c
- "aijsondb/aijsondbresolver.cpp" 
- "aijsondb/aijsondbloadwithimporter.cpp")
+ "aijsondb/aijsondbresolver.cpp" "aijsondb/aijsondbloadwithimporter.cpp"
+  #  aijsondb/aijsondblib.cpp
+  #   aijsondb/aijsondbindex.cpp
+  #  third_party/quickjs-ng/quickjs-amalgam.c
+ #"aijsondb/aijsondbresolver.cpp" 
+ #"aijsondb/aijsondbloadwithimporter.cpp"
+)
 target_compile_definitions(aijsontests PUBLIC TEST_DATA_DIR="${CMAKE_CURRENT_SOURCE_DIR}/data/")
 #target_link_libraries(aijsontests PRIVATE Catch2::Catch2WithMain ${PROJECT_LINK_DIR}/${PROJECT_LINK_LIBS} ${PROJECT_LINK_DIR}/miniz.lib ${PROJECT_LINK_DIR}/nowide.lib ${PROJECT_LINK_DIR}/pugixml.lib)
-target_link_libraries(aijsontests PRIVATE OpenXLSX::OpenXLSX Catch2::Catch2WithMain aijsondbexcellib)
-target_include_directories(aijsontests PRIVATE ${OpenXLSX_INCLUDES})
+target_link_libraries(aijsontests PRIVATE Catch2::Catch2WithMain aijsondbexcellib)
+#target_include_directories(aijsontests PRIVATE ${OpenXLSX_INCLUDES})
 
 
 list(APPEND CMAKE_MODULE_PATH ${catch2_SOURCE_DIR}/extras)

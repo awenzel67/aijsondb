@@ -1,5 +1,5 @@
 #include "aijsondblib.h"
-#include "../aijsondbexcel/aijsondbimportexcel.h"
+#include "../aijsondbexcel/aijsondbimportexcelplus.h"
 // mylib.h
 #ifdef _WIN32
 #define EXPORT __declspec(dllexport)
@@ -14,7 +14,7 @@ extern "C" {
 	}
 
    EXPORT	int ffi_aijsondb_import_or_load_data(const char* filename, const char* json_filename, const char* schema) {
-	   IBulkImporter* o = new ExcelImporter();
+	   IBulkImporter* o = new ExcelImporterPlus();
 	   std::unique_ptr<IBulkImporter> op(o);
 	   register_importer(op);
 	   return aijsondb_load_data_with_cache(filename,json_filename, schema);

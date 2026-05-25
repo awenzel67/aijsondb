@@ -1,5 +1,5 @@
 #include <OpenXLSX.hpp>
-#include "aijsondbimportexcel.h"
+#include "aijsondbimportexcelplus.h"
 #include "excelhelper.h"
 #include <iostream>
 #include <map>
@@ -15,7 +15,6 @@
 #include <format>
 #include <filesystem>
 #include <time.h>
-#include "excelhelper.h"
 
 
 typedef std::tuple<int, std::vector<std::string>> HeaderInfo;
@@ -265,7 +264,7 @@ std::string make_individal_header(std::map<string,size_t>& headers,const std::st
 
 bool ExcelImporterPlus::import(const std::string& filepath, std::map<std::string, std::vector<std::string>>& cache, std::string& schema, std::string& error)
 {
-    enable_xml_namespaces();
+    //enable_xml_namespaces();
     UseRandomIDs();
     cache.clear();
     schema.clear();
@@ -282,8 +281,8 @@ bool ExcelImporterPlus::import(const std::string& filepath, std::map<std::string
     catch (std::exception& ex)
     {
         error = ex.what();
-        UseSequentialIDs();
-        disable_xml_namespaces();
+        //UseSequentialIDs();
+        //disable_xml_namespaces();
         return false;
     }
 
@@ -654,8 +653,8 @@ bool ExcelImporterPlus::import(const std::string& filepath, std::map<std::string
     auto duration = std::chrono::duration_cast<std::chrono::microseconds>(stop - start);
     // std::cout << "Time taken: " << duration.count() * 1.0 / 1000.0 / 1000.0 << " microseconds" << std::endl;
     // std::clog << "Processing complete" << std::endl;
-    UseSequentialIDs();
-    disable_xml_namespaces();
+    //UseSequentialIDs();
+    //disable_xml_namespaces();
     return true;
 
 }

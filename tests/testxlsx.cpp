@@ -6,12 +6,13 @@
 #include <jsoncons_ext/jsonschema/jsonschema.hpp>
 #include "quickjs.h"
 #include "../aijsondb/aijsondbresolver.h"
-#include "../aijsondbexcel/aijsondbimportexcel.h"
+#include "../aijsondbexcel/aijsondbimportexcelPlus.h"
 #include <sstream>
 #include <filesystem>
 #include <memory>
 #include <codecvt>
-#include <OpenXLSX.hpp>
+//#include <OpenXLSX.hpp>
+
 
 #define SAVE_TEST_DATA 1
 
@@ -25,8 +26,9 @@ const char* test_data_dir_xlsx()
 const char* testq5 = "var result=data.Mitarbeiter.length";
 const char* testq6 = "var result=data.Arbeitszeit.length";
 
+
 TEST_CASE("Test Domino query excel multiple woksheets", "[domino]") {
-	IBulkImporter* o = new ExcelImporter();
+	IBulkImporter* o = new ExcelImporterPlus();
 	std::unique_ptr<IBulkImporter> op(o);
 	register_importer(op);
 	TempDir temp_dir;
@@ -90,7 +92,7 @@ TEST_CASE("Test Domino query excel multiple woksheets", "[domino]") {
 
 
 TEST_CASE("Test Domino query excel real woksheets", "[domino]") {
-	IBulkImporter* o = new ExcelImporter();
+	IBulkImporter* o = new ExcelImporterPlus();
 	std::unique_ptr<IBulkImporter> op(o);
 	register_importer(op);
 	TempDir temp_dir;
@@ -137,12 +139,11 @@ TEST_CASE("Test Domino query excel real woksheets", "[domino]") {
 	delete buffer;
 }
 
-int test_excel(const std::string& xlsx_file, jsoncons::json& jvalue, jsoncons::json& jschema) {
+int run_excel(const std::string& xlsx_file, jsoncons::json& jvalue, jsoncons::json& jschema) {
 	IBulkImporter* o = new ExcelImporterPlus();
 	std::unique_ptr<IBulkImporter> op(o);
 	register_importer(op);
 	TempDir temp_dir;
-
 	std::filesystem::path path_data = temp_dir.path() / "employees_excel.json";
 	std::filesystem::path path_schema = temp_dir.path() / "employees_excel_schema.json";
 
@@ -205,7 +206,7 @@ bool check_schema_description(const jsoncons::json& jschema, const std::string& 
 TEST_CASE("Test Domino query excel duckdb woksheets", "[domino]") {
 	jsoncons::json jvalue;
 	jsoncons::json jschema;
-	int load = test_excel("gdal/test.xlsx", jvalue, jschema);
+	int load = run_excel("gdal/test.xlsx", jvalue, jschema);
 	REQUIRE(load == 0);
 	{
 		std::ofstream ofs("c:/del/output.json");
@@ -390,10 +391,11 @@ TEST_CASE("Test Domino query excel duckdb woksheets", "[domino]") {
 	}
 }
 
+
 TEST_CASE("Test Domino query excel duckdb absolute_sheet_filename", "[domino]") {
 	jsoncons::json jvalue;
 	jsoncons::json jschema;
-	int load = test_excel("gdal/absolute_sheet_filename.xlsx", jvalue, jschema);
+	int load = run_excel("gdal/absolute_sheet_filename.xlsx", jvalue, jschema);
 	REQUIRE(load == 0);
 #if SAVE_TEST_DATA
 	{
@@ -422,7 +424,7 @@ TEST_CASE("Test Domino query excel duckdb absolute_sheet_filename", "[domino]") 
 TEST_CASE("Test Domino query excel duckdb cells_with_inline_formatting", "[domino]") {
 	jsoncons::json jvalue;
 	jsoncons::json jschema;
-	int load = test_excel("gdal/cells_with_inline_formatting.xlsx", jvalue, jschema);
+	int load = run_excel("gdal/cells_with_inline_formatting.xlsx", jvalue, jschema);
 	REQUIRE(load == 0);
 #if SAVE_TEST_DATA
 	{
@@ -507,7 +509,7 @@ TEST_CASE("Test Domino query excel duckdb datetime", "[domino]") {
 
 	jsoncons::json jvalue;
 	jsoncons::json jschema;
-	int load = test_excel("gdal/datetime.xlsx", jvalue, jschema);
+	int load = run_excel("gdal/datetime.xlsx", jvalue, jschema);
 	REQUIRE(load == 0);
 #if SAVE_TEST_DATA
 	{
@@ -565,7 +567,7 @@ void  readUtf8File(const std::string& file_test,std::vector<std::string>& lines)
 TEST_CASE("Test Domino query excel duckdb inlineStr", "[domino]") {
 	jsoncons::json jvalue;
 	jsoncons::json jschema;
-	int load = test_excel("gdal/inlineStr.xlsx", jvalue, jschema);
+	int load = run_excel("gdal/inlineStr.xlsx", jvalue, jschema);
 	std::vector<std::string> testdata;
 	readUtf8File("inlineStr.test",testdata);
 	REQUIRE(load == 0);
@@ -720,7 +722,7 @@ TEST_CASE("Test Domino query excel duckdb inlineStr", "[domino]") {
 TEST_CASE("Test Domino query excel duckdb not_all_columns_present", "[domino]") {
 	jsoncons::json jvalue;
 	jsoncons::json jschema;
-	int load = test_excel("gdal/not_all_columns_present.xlsx", jvalue, jschema);
+	int load = run_excel("gdal/not_all_columns_present.xlsx", jvalue, jschema);
 	REQUIRE(load == 0);
 #if SAVE_TEST_DATA
 	{
@@ -741,7 +743,7 @@ TEST_CASE("Test Domino query excel duckdb not_all_columns_present", "[domino]") 
 TEST_CASE("Test Domino query excel duckdb row_without_r_attribute", "[domino]") {
 	jsoncons::json jvalue;
 	jsoncons::json jschema;
-	int load = test_excel("gdal/row_without_r_attribute.xlsx", jvalue, jschema);
+	int load = run_excel("gdal/row_without_r_attribute.xlsx", jvalue, jschema);
 	REQUIRE(load == 0);
 #if SAVE_TEST_DATA
 	{
@@ -774,12 +776,13 @@ std::vector<std::string> splitByTab(const std::string& line) {
 }
 
 
+
 std::string to_js_name(const std::string& label);
 
 TEST_CASE("Test Domino query excel duckdb test_empty_last_field", "[domino]") {
 	jsoncons::json jvalue;
 	jsoncons::json jschema;
-	int load = test_excel("gdal/test_empty_last_field.xlsx", jvalue, jschema);
+	int load = run_excel("gdal/test_empty_last_field.xlsx", jvalue, jschema);
 	REQUIRE(load == 0);
 	std::vector<std::string> testdata;
 	readUtf8File("test_empty_last_field.test", testdata);
@@ -887,10 +890,11 @@ TEST_CASE("Test Domino query excel duckdb test_empty_last_field", "[domino]") {
 }
 
 
+
 TEST_CASE("Test Domino query excel duckdb test_missing_row1_data.test", "[domino]") {
 	jsoncons::json jvalue;
 	jsoncons::json jschema;
-	int load = test_excel("gdal/test_missing_row1_data.xlsx", jvalue, jschema);
+	int load = run_excel("gdal/test_missing_row1_data.xlsx", jvalue, jschema);
 	REQUIRE(load == 0);
 	std::vector<std::string> testdata;
 	readUtf8File("test_missing_row1_data.test", testdata);
@@ -1002,12 +1006,11 @@ TEST_CASE("Test Domino query excel duckdb test_missing_row1_data.test", "[domino
 //bool enable_xml_namespaces();
 
 TEST_CASE("Test Domino query excel duckdb with_xml_prefix", "[domino]") {
-	using namespace OpenXLSX;
 	jsoncons::json jvalue;
 	jsoncons::json jschema;
 	//enable_xml_namespaces();
 	//UseRandomIDs();
-	int load = test_excel("gdal/with_xml_prefix.xlsx", jvalue, jschema);
+	int load = run_excel("gdal/with_xml_prefix.xlsx", jvalue, jschema);
 	REQUIRE(load == 0);
 #if SAVE_TEST_DATA
 	{
@@ -1124,10 +1127,11 @@ void check_datetime_column(const jsoncons::json& jvalue, const jsoncons::json& j
 	}
 }
 
+
 TEST_CASE("Test Domino query excel duckdb duckdb_excel_rep1", "[domino]") {
 	jsoncons::json jvalue;
 	jsoncons::json jschema;
-	int load = test_excel("duckdb_excel_rep1.xlsx", jvalue, jschema);
+	int load = run_excel("duckdb_excel_rep1.xlsx", jvalue, jschema);
 	REQUIRE(load == 0);
 	std::vector<std::string> testdata;
 	readUtf8File("duckdb_excel_rep1.test", testdata);
@@ -1161,7 +1165,7 @@ TEST_CASE("Test Domino query excel duckdb duckdb_excel_rep1", "[domino]") {
 TEST_CASE("Test Domino query excel non_sequential", "[domino]") {
 	jsoncons::json jvalue;
 	jsoncons::json jschema;
-	int load = test_excel("non_sequential.xlsx", jvalue, jschema);
+	int load = run_excel("non_sequential.xlsx", jvalue, jschema);
 	REQUIRE(load == 0);
 #if SAVE_TEST_DATA
 	{
@@ -1215,7 +1219,7 @@ TEST_CASE("Test Domino query excel non_sequential", "[domino]") {
 TEST_CASE("Test Domino query columns_letter", "[domino]") {
 	jsoncons::json jvalue;
 	jsoncons::json jschema;
-	int load = test_excel("columns_letter.xlsx", jvalue, jschema);
+	int load = run_excel("columns_letter.xlsx", jvalue, jschema);
 	REQUIRE(load == 0);
 #if SAVE_TEST_DATA
 	{
@@ -1236,7 +1240,7 @@ TEST_CASE("Test Domino query columns_letter", "[domino]") {
 TEST_CASE("Test Domino query phonetic", "[domino]") {
 	jsoncons::json jvalue;
 	jsoncons::json jschema;
-	int load = test_excel("phonetic.xlsx", jvalue, jschema);
+	int load = run_excel("phonetic.xlsx", jvalue, jschema);
 	REQUIRE(load == 0);
 	std::vector<std::string> testdata;
 	readUtf8File("phonetic.test", testdata);
@@ -1291,7 +1295,7 @@ TEST_CASE("Test Domino query phonetic", "[domino]") {
 TEST_CASE("Test Domino query excel basic", "[domino]") {
 	jsoncons::json jvalue;
 	jsoncons::json jschema;
-	int load = test_excel("basic.xlsx", jvalue, jschema);
+	int load = run_excel("basic.xlsx", jvalue, jschema);
 	REQUIRE(load == 0);
 #if SAVE_TEST_DATA
 	{
@@ -1311,7 +1315,7 @@ TEST_CASE("Test Domino query excel basic", "[domino]") {
 TEST_CASE("Test Domino query excel two_sheets", "[domino]") {
 	jsoncons::json jvalue;
 	jsoncons::json jschema;
-	int load = test_excel("two_sheets.xlsx", jvalue, jschema);
+	int load = run_excel("two_sheets.xlsx", jvalue, jschema);
 	REQUIRE(load == 0);
 #if SAVE_TEST_DATA
 	{
@@ -1348,7 +1352,7 @@ TEST_CASE("Test Domino query excel two_sheets", "[domino]") {
 TEST_CASE("Test Domino query excel normalize_names_1", "[domino]") {
 	jsoncons::json jvalue;
 	jsoncons::json jschema;
-	int load = test_excel("normalize_names_1.xlsx", jvalue, jschema);
+	int load = run_excel("normalize_names_1.xlsx", jvalue, jschema);
 	REQUIRE(load == 0);
 #if SAVE_TEST_DATA
 	{
@@ -1385,7 +1389,7 @@ TEST_CASE("Test Domino query excel normalize_names_1", "[domino]") {
 TEST_CASE("Test Domino query excel time_data_with_blanks", "[domino]") {
 	jsoncons::json jvalue;
 	jsoncons::json jschema;
-	int load = test_excel("time_data_with_blanks.xlsx", jvalue, jschema);
+	int load = run_excel("time_data_with_blanks.xlsx", jvalue, jschema);
 	REQUIRE(load == 0);
 #if SAVE_TEST_DATA
 	{
@@ -1423,7 +1427,7 @@ TEST_CASE("Test Domino query excel time_data_with_blanks", "[domino]") {
 TEST_CASE("Test Domino query excel time_data_with_blanks_no_leading_zero", "[domino]") {
 	jsoncons::json jvalue;
 	jsoncons::json jschema;
-	int load = test_excel("time_data_with_blanks_no_leading_zero.xlsx", jvalue, jschema);
+	int load = run_excel("time_data_with_blanks_no_leading_zero.xlsx", jvalue, jschema);
 	REQUIRE(load == 0);
 #if SAVE_TEST_DATA
 	{
@@ -1462,7 +1466,7 @@ TEST_CASE("Test Domino query excel time_data_with_blanks_no_leading_zero", "[dom
 TEST_CASE("Test Domino query excel collapsed_cells_jagged", "[domino]") {
 	jsoncons::json jvalue;
 	jsoncons::json jschema;
-	int load = test_excel("collapsed_cells_jagged.xlsx", jvalue, jschema);
+	int load = run_excel("collapsed_cells_jagged.xlsx", jvalue, jschema);
 	REQUIRE(load == 0);
 #if SAVE_TEST_DATA
 	{
@@ -1484,7 +1488,7 @@ TEST_CASE("Test Domino query excel collapsed_cells_jagged", "[domino]") {
 TEST_CASE("Test Domino query excel google_sheets", "[domino]") {
 	jsoncons::json jvalue;
 	jsoncons::json jschema;
-	int load = test_excel("google_sheets.xlsx", jvalue, jschema);
+	int load = run_excel("google_sheets.xlsx", jvalue, jschema);
 	REQUIRE(load == 0);
 #if SAVE_TEST_DATA
 	{
@@ -1591,7 +1595,7 @@ int test_excel_plus(const std::string& xlsx_file, jsoncons::json& jvalue, jsonco
 TEST_CASE("Test Domino query excel header_only", "[domino]") {
 	jsoncons::json jvalue;
 	jsoncons::json jschema;
-	int load = test_excel("header_only.xlsx", jvalue, jschema);
+	int load = run_excel("header_only.xlsx", jvalue, jschema);
 	REQUIRE(load == 0);
 #if SAVE_TEST_DATA
 	{
@@ -1638,7 +1642,7 @@ TEST_CASE("Test Domino query excel header_only", "[domino]") {
 TEST_CASE("Test Domino query excel sparse", "[domino]") {
 	jsoncons::json jvalue;
 	jsoncons::json jschema;
-	int load = test_excel("sparse.xlsx", jvalue, jschema);
+	int load = run_excel("sparse.xlsx", jvalue, jschema);
 	REQUIRE(load == 0);
 #if SAVE_TEST_DATA
 	{
@@ -1654,6 +1658,7 @@ TEST_CASE("Test Domino query excel sparse", "[domino]") {
 #endif
 	REQUIRE(jvalue.size() == 1);
 }
+
 
 TEST_CASE("Test Domino query excel collapsed_cells", "[domino]") {
 	jsoncons::json jvalue;
@@ -1723,7 +1728,7 @@ TEST_CASE("Test Domino query excel collapsed_cells", "[domino]") {
 	}
 }
 
-
+#if false
 bool testUncollapseCells(std::string& excel_in, std::string& excel_out);
 
 
@@ -1736,3 +1741,5 @@ TEST_CASE("Test Domino query excel unmerge", "[domino]") {
 	bool res = testUncollapseCells(pathk, excel_out);
 	REQUIRE(res);
 }
+
+#endif

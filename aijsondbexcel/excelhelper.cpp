@@ -3,7 +3,7 @@
 #include <locale>
 #include <set>
 #include "excelhelper.h"
-#include "aijsondbimportexcel.h"
+#include "aijsondbimportexcelplus.h"
 #include <OpenXLSX.hpp>
 
 using namespace std;

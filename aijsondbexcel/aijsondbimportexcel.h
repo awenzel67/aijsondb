@@ -2,7 +2,6 @@
 #define AIJSONDB_EXCEL_IMPORT_H
 #include "../aijsondb/aijsondbimporter.hpp"
 #include <map>
-#include "aijsondbimportexcelplus.h"
 
 class ExcelImporter: public IBulkImporter
 {

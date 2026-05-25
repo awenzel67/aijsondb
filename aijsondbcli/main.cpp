@@ -1,13 +1,13 @@
 /* File generated automatically by the QuickJS-ng compiler. */
 
 #include "aijsondblib.h"
-#include "../aijsondbexcel/aijsondbimportexcel.h"
+#include "../aijsondbexcel/aijsondbimportexcelplus.h"
 #include <stdio.h>
 #include "../third_party/cli11/CLI11.hpp"
 
 int main(int argc, char **argv)
 {
-    IBulkImporter* o = new ExcelImporter();
+    IBulkImporter* o = new ExcelImporterPlus();
     std::unique_ptr<IBulkImporter> op(o);
     register_importer(op);
 
