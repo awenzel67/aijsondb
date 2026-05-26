@@ -8,11 +8,15 @@
 #include <jsoncons/json.hpp>
 #include <jsoncons_ext/jsonschema/jsonschema.hpp>
 #include <fstream>
+#include "aijsondbimporter.hpp"
 #include "aijsondblib.h"
 #include "quickjs.h"
 #include "quickjs-libc.h"
 #include "aijsondbindex.h"
 #include "aijsondbresolver.h"
+#include "aijsondbloadwithimporter.h"
+#include <filesystem>
+
 
 static JSContext* JS_NewCustomContext(JSRuntime* rt)
 {
@@ -26,12 +30,24 @@ std::mutex mtx;
 static std::map<std::string, std::vector<std::string>> jobject_cache;
 static std::string jobject_cache_schema;
 static std::string last_error_message;
+static std::map<size_t, jsoncons::json> result_set_map;
+
+std::map<std::string, std::vector<std::string>>* get_object_cache() {
+	return &jobject_cache;
+}
+
+std::string* get_jobject_cache_schema()
+{
+	return &jobject_cache_schema;
+}
+
 
 int aijsondb_free_data()
 {
 	std::lock_guard<std::mutex> lock(mtx);
 	jobject_cache.clear();
 	last_error_message.clear();
+	result_set_map.clear();
 	return 0;
 }
 
@@ -58,6 +74,118 @@ int aijsondb_load_data(const char* filepath_data,const char* filepath_schema)
 	return load_cache_and_validate(filepath_data);
 	//printf("Data loaded successfully:\n%s\n", domino_data);
 }
+
+int aijsondb_save_data(const char* filepath_data)
+{
+		//std::lock_guard<std::mutex> lock(mtx);
+		if (std::filesystem::exists(filepath_data)) {
+			last_error_message = "File already exists: ";
+			last_error_message.append(filepath_data);
+			return -1;
+		}
+
+
+		std::ofstream file(filepath_data, std::ios::out | std::ios::binary);
+		if (!file) {
+			last_error_message = "Error opening schema file";
+			return -1;
+		}
+		size_t ibucket = 0;
+		size_t nbucket=jobject_cache.size();
+		file << "{";
+		for (auto kv : jobject_cache){
+			file << "\"" << kv.first << "\" : [" << "\n";
+			size_t i=0;
+			for (auto entity : kv.second)
+			{
+				file << entity;
+				if (i + 1 < kv.second.size())
+				{
+					file << ",";
+				}
+				file << "\n";
+				i++;
+			}
+			if (ibucket + 1 < nbucket)
+			{
+				file << "]," << "\n";
+			}
+			else
+			{
+				file << "]" << "\n";
+			}
+			ibucket++;
+	    }
+		file << "}";
+		file.close();
+		return 0;
+	//printf("Data loaded successfully:\n%s\n", domino_data);
+}
+
+int aijsondb_load_data_with_cache(
+	const char* filename,
+	const char* json_filename,
+	const char* schema
+) {
+
+	if (std::filesystem::exists(json_filename))
+		return aijsondb_load_data(json_filename, schema);
+
+	if (!std::filesystem::exists(filename)) {
+		last_error_message = "File does not exists: ";
+		last_error_message.append(filename);
+		return -1;
+	}
+
+	if (std::filesystem::exists(json_filename)) {
+		last_error_message = "JSON data file alread exists: ";
+		last_error_message.append(json_filename);
+		return -1;
+	}
+
+	if (std::filesystem::exists(schema)) {
+		last_error_message = "JSON schema file alread exists: ";
+		last_error_message.append(schema);
+		return -1;
+	}
+
+	std::filesystem::path fpx(filename);
+	std::string ext = fpx.extension().string();
+	IBulkImporter* importer = get_importer(ext);
+	if (importer == nullptr)
+	{
+		last_error_message = "No importer for: ";
+		last_error_message.append(filename);
+		return -1;
+	}
+
+
+
+    std::string error;
+	if (!importer->import(filename, jobject_cache, jobject_cache_schema, error))
+	{
+		last_error_message = error;
+		return -1;
+	}
+
+	if (aijsondb_save_data(json_filename) != 0)
+		return -1;
+
+
+	std::ofstream file(schema, std::ios::out | std::ios::binary);
+	if (!file) {
+		last_error_message = "Error opening schema file";
+		return -1;
+	}
+	
+	file << jobject_cache_schema;
+
+	file.close();
+
+	return 0;
+}
+
+
 
 
 int init_functions(JSContext* ctx);
@@ -523,3 +651,185 @@ int init_functions(JSContext* ctx)
 	return 0;
 }
 
+std::mutex mtx_importer;
+static std::map<std::string,std::unique_ptr<IBulkImporter>> importers;
+
+bool register_importer(std::unique_ptr<IBulkImporter>& importer) {
+	
+	std::lock_guard<std::mutex> lock(mtx_importer);
+
+	if (importer == nullptr)
+		return false;
+
+	std::string ending = importer->ending();
+	if (ending.size() == 0)
+		return false;
+	importers[ending] = std::move(importer);
+	return true;
+}
+
+IBulkImporter* get_importer(const std::string& ending)
+{
+	std::lock_guard<std::mutex> lock(mtx_importer);
+	if (ending.size() == 0)
+		return nullptr;
+
+	auto ef = importers.find(ending);
+	if (ef == importers.end())
+		return nullptr;
+	IBulkImporter* hl= ef->second.get();
+	return hl;
+}
+
+void clear_importer(std::unique_ptr<IBulkImporter>& importer) {
+
+	std::lock_guard<std::mutex> lock(mtx_importer);
+	importers.clear();
+}
+
+int aijsondb_query_result_set(const char* query) {
+
+	std::lock_guard<std::mutex> lock(mtx);
+	JSRuntime* rt;
+	JSContext* ctx;
+	rt = JS_NewRuntime();
+	ctx = JS_NewCustomContext(rt);
+	int ifu = init_functions(ctx);
+	if (ifu != 0) return -1;
+
+	int init = aijsondb_index(ctx);
+	if (init != 0) 
+		return -1;
+
+	int nbuffer = 1014;
+	char buffer[1024];
+	int ret = 0;
+	{
+		std::string query_str(query);
+		JSValue jsv = JS_Eval(ctx, query_str.c_str(), query_str.size(), "<query>", JS_EVAL_TYPE_GLOBAL);
+		//int32_t int_result;
+		//JS_ToInt32(ctx, &int_result, jsv);
+		//printf("ih==%d\n", int_result);
+		if (JS_IsException(jsv)) {
+			js_error_message(ctx, jsv, buffer, nbuffer);
+			last_error_message = buffer;
+			printf("%s\n", buffer);
+			JS_FreeValue(ctx, jsv);
+			JS_FreeContext(ctx);
+			JS_FreeRuntime(rt);
+			return -1;
+		}
+		else {
+			JS_FreeValue(ctx, jsv);
+		}
+	}
+
+	{
+		const char* eres = "result";
+		JSValue jsv = JS_Eval(ctx, eres, strlen(eres), "<result>", JS_EVAL_TYPE_GLOBAL);
+		if (JS_IsException(jsv)) {
+			js_error_message(ctx, jsv, buffer, nbuffer);
+			last_error_message = buffer;
+			JS_FreeValue(ctx, jsv);
+			JS_FreeContext(ctx);
+			JS_FreeRuntime(rt);
+			return -1;
+		}
+		else {
+			//	ResultRows rows;
+			//	jsoncons::json j;
+			//	walk_objects_and_resolve(ctx,jsv,nullptr,rows,j);
+			jsoncons::json j;
+			toJsonWithVirtual(ctx, jsv, j);
+			if (!j.is_null())
+			{
+				JS_FreeValue(ctx, jsv);
+				ret=save_result(result_set_map, j);
+			}
+			else
+			{
+				ret = -1;
+				const char* error_message = "result is undefined";
+				if (strlen(error_message) < nbuffer - 1) {
+					strcpy(buffer, error_message);
+					last_error_message = buffer;
+				}
+			}
+			//JS_FreeCString(ctx, gh);
+		}
+	}
+	//printf("Hello vor Ende\n");
+	JS_FreeContext(ctx);
+	JS_FreeRuntime(rt);
+	return ret;
+}
+
+int aijsondb_result_set_next(int index_result_set,int index_next, char* bucket, int nbucket, char* buffer, int nbuffer, int* isArray)
+{
+	std::lock_guard<std::mutex> lock(mtx);
+	if (nbucket <= 0)
+		return -1;
+	if (nbuffer <= 0)
+		return -1;
+
+	*bucket = '\0';
+	*buffer = '\0';
+	*isArray = 0;
+
+
+	std::string sbucket;
+	bool is_array=false;
+	jsoncons::json fragment;
+	bool res=get_result(result_set_map, index_result_set, index_next, sbucket, fragment, is_array);
+	if (!res)
+		return -1;
+	if (sbucket.size() > 0)
+	{
+		if (sbucket.size() < nbucket)
+		{
+			strcpy(bucket, sbucket.c_str());
+		}
+		else
+		{
+			return -1;
+		}
+	}
+	if (is_array)
+	{
+		*isArray = 1;
+	}
+
+	std::stringstream sst;
+	sst << fragment;
+	std::string sfragment = sst.str();
+
+	if (sfragment.size() > 0)
+	{
+		if (sfragment.size() < nbuffer)
+		{
+			strcpy(buffer, sfragment.c_str());
+		}
+		else
+		{
+			return -1;
+		}
+	}
+
+	return 0;
+}
+
+int aijsondb_result_set_clear(int index_result_set)
+{
+	std::lock_guard<std::mutex> lock(mtx);
+
+	auto df = result_set_map.find(index_result_set);
+	if (df != result_set_map.end())
+	{
+		auto err=result_set_map.erase(index_result_set);
+		if (err)
+		{
+			return 0;
+		}
+	}
+	return -1;
+}

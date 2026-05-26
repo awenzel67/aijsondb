@@ -1,0 +1,1 @@
+int load_with_importer(IImporter* importer, const char* filepath, std::string& error);

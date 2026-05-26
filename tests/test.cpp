@@ -5,7 +5,11 @@
 #include <jsoncons_ext/jsonschema/jsonschema.hpp>
 #include "quickjs.h"
 #include "../aijsondb/aijsondbresolver.h"
+#include "../aijsondbexcel/aijsondbimportexcel.h"
 #include <sstream>
+#include <filesystem>
+#include <memory>
+
 
 const char* test_data_dir()
 {
@@ -80,6 +84,82 @@ TEST_CASE("Test Domino query bucket array", "[domino]") {
 	delete buffer;
 }
 
+#if false
+const char* query_test4 = "var result=data.KitalisteVer_ffentlichung.length";
+TEST_CASE("Test Domino query excel", "[domino]") {
+	std::string path_data = test_data_dir();
+	path_data += "500 KB_V3.json";
+	std::string path_schema = test_data_dir();
+	path_schema += "employeeSchemaDescription_V3.json";
+	std::string pd = "C:/del/output_utf8.json";
+	std::string ps = "C:/del/output_utf8_schema.json";
+	int res = aijsondb_load_data(pd.c_str(), ps.c_str());
+	REQUIRE(res == 0);
+	const int nbuffer = 1024 * 1000;
+	char* buffer = new char[nbuffer];
+	res = aijsondb_query(query_test4, buffer, nbuffer);
+	std::cout << "Query result: " << buffer << std::endl;
+	REQUIRE(res == 0);
+	std::string sres(buffer);
+	try
+	{
+		jsoncons::json j = jsoncons::json::parse(sres);
+		int count = j.as_integer<int>();
+		REQUIRE(count == 2917);
+	}
+	catch (const std::exception& e)
+	{
+		std::cerr << "Failed to parse JSON: " << e.what() << std::endl;
+		FAIL("JSON parsing failed");
+	}
+	delete buffer;
+}
+#endif
+
+#if false
+TEST_CASE("Test Domino query excel load", "[domino]") {
+	IBulkImporter* o= new ExcelImporter();
+	std::unique_ptr<IBulkImporter> op(o);
+	register_importer(op);
+	std::string path_data = test_data_dir();
+	path_data += "500 KB_V3.json";
+	std::string path_schema = test_data_dir();
+	path_schema += "employeeSchemaDescription_V3.json";
+	std::string pd = "C:/del/output2_utf8.json";
+	if (std::filesystem::exists(pd))
+	{
+		std::filesystem::remove(pd);
+	}
+	std::string ps = "C:/del/output2_utf8_schema.json";
+	if (std::filesystem::exists(ps))
+	{
+		std::filesystem::remove(ps);
+	}
+
+	std::string filename = "kitaliste-nov-2025.xlsx";
+	std::string pathk="C:/NHKI/data/talktodataexcel/" + filename;
+	int res = aijsondb_load_data_with_cache(pathk.c_str(),pd.c_str(), ps.c_str());
+	REQUIRE(res == 0);
+	const int nbuffer = 1024 * 1000;
+	char* buffer = new char[nbuffer];
+	res = aijsondb_query(query_test4, buffer, nbuffer);
+	std::cout << "Query result: " << buffer << std::endl;
+	REQUIRE(res == 0);
+	std::string sres(buffer);
+	try
+	{
+		jsoncons::json j = jsoncons::json::parse(sres);
+		int count = j.as_integer<int>();
+		REQUIRE(count == 2917);
+	}
+	catch (const std::exception& e)
+	{
+		std::cerr << "Failed to parse JSON: " << e.what() << std::endl;
+		FAIL("JSON parsing failed");
+	}
+	delete buffer;
+}
+#endif
 
 TEST_CASE("Test Domino No Load Data", "[domino]") {
 	std::string path_data = test_data_dir();
@@ -478,131 +558,410 @@ TEST_CASE("Test aijsondb serialize undefined", "[domino]") {
 	JS_FreeRuntime(rt);
 }
 
-#if false
-int aijsondb_query_test()
-{
-	aijsondb_load_data("C:/NHKI/aijsondb/data/500 KB_V2.json", "C:/NHKI/aijsondb/data/employeeSchemaDescription_V2.json");
-	{
-		std::cout << "buckets: " << jobject_cache.size() << std::endl;
-		std::cout << "employees" << jobject_cache["employees"].size() << std::endl;
-		std::cout << "employe[100]" << jobject_cache["employees"][100] << std::endl;
-	}
-	{
-		std::lock_guard<std::mutex> lock(mtx);
+int test_mona();
 
-		//		jobject_cache["employees"] = { "{\"id\":\"E0001\",\"name\":\"Berta\"}" };
-
-		JSRuntime* rt;
-		JSContext* ctx;
-		rt = JS_NewRuntime();
-		ctx = JS_NewCustomContext(rt);
-		const int nbuffer = 1024 * 10;
-		char buffer[nbuffer];
-		//printf("%s\n", aijsondb_data);
-
-		init_functions(ctx);
-
-		{
-			std::string query = "aijsondb_buckets()";
-			JSValue jsv = JS_Eval(ctx, query.c_str(), query.size(), "<test>", JS_EVAL_TYPE_GLOBAL);
-			//int32_t int_result;
-			//JS_ToInt32(ctx, &int_result, jsv);
-			//printf("ih==%d\n", int_result);
-			if (JS_IsException(jsv)) {
-				js_error_message(ctx, jsv, buffer, nbuffer);
-				JS_FreeValue(ctx, jsv);
-				JS_FreeContext(ctx);
-				JS_FreeRuntime(rt);
-				return -1;
-			}
-			else {
-				JSValue jsonh = JS_JSONStringify(ctx, jsv, JS_UNDEFINED, JS_UNDEFINED);
-				const char* jsh = JS_ToCString(ctx, jsonh);
-				printf("%s\n", jsh);
-				JS_FreeCString(ctx, jsh);
-				JS_FreeValue(ctx, jsonh);
-				JS_FreeValue(ctx, jsv);
-			}
-		}
-
-		{
-			std::string query = "aijsondb_bucket_length('employees')";
-			JSValue jsv = JS_Eval(ctx, query.c_str(), query.size(), "<test>", JS_EVAL_TYPE_GLOBAL);
-			//int32_t int_result;
-			//JS_ToInt32(ctx, &int_result, jsv);
-			//printf("ih==%d\n", int_result);
-			if (JS_IsException(jsv)) {
-				js_error_message(ctx, jsv, buffer, nbuffer);
-				JS_FreeValue(ctx, jsv);
-				JS_FreeContext(ctx);
-				JS_FreeRuntime(rt);
-				return -1;
-			}
-			else {
-				int32_t int_result = 0;
-				int ih = JS_ToInt32(ctx, &int_result, jsv);
-				printf("%d\n", int_result);
-				JS_FreeValue(ctx, jsv);
-			}
-		}
-
-
-		{
-			std::string query = "aijsondb_bucket_object('employees',0)";
-			JSValue jsv = JS_Eval(ctx, query.c_str(), query.size(), "<test>", JS_EVAL_TYPE_GLOBAL);
-			//int32_t int_result;
-			//JS_ToInt32(ctx, &int_result, jsv);
-			//printf("ih==%d\n", int_result);
-			if (JS_IsException(jsv)) {
-				js_error_message(ctx, jsv, buffer, nbuffer);
-				JS_FreeValue(ctx, jsv);
-				JS_FreeContext(ctx);
-				JS_FreeRuntime(rt);
-				return -1;
-			}
-			else {
-				JSValue jsonh = JS_JSONStringify(ctx, jsv, JS_UNDEFINED, JS_UNDEFINED);
-				const char* jsh = JS_ToCString(ctx, jsonh);
-				printf("%s\n", jsh);
-				JS_FreeCString(ctx, jsh);
-				JS_FreeValue(ctx, jsonh);
-				JS_FreeValue(ctx, jsv);
-			}
-		}
-
-		{
-			std::string query = "aijsondb_schema()";
-			JSValue jsv = JS_Eval(ctx, query.c_str(), query.size(), "<test>", JS_EVAL_TYPE_GLOBAL);
-			//int32_t int_result;
-			//JS_ToInt32(ctx, &int_result, jsv);
-			//printf("ih==%d\n", int_result);
-			if (JS_IsException(jsv)) {
-				js_error_message(ctx, jsv, buffer, nbuffer);
-				JS_FreeValue(ctx, jsv);
-				JS_FreeContext(ctx);
-				JS_FreeRuntime(rt);
-				return -1;
-			}
-			else {
-				JSValue jsonh = JS_JSONStringify(ctx, jsv, JS_UNDEFINED, JS_UNDEFINED);
-				const char* jsh = JS_ToCString(ctx, jsonh);
-				printf("%s\n", jsh);
-				JS_FreeCString(ctx, jsh);
-				JS_FreeValue(ctx, jsonh);
-				JS_FreeValue(ctx, jsv);
-			}
-		}
-
-		//printf("Hello vor Ende\n");
-		JS_FreeContext(ctx);
-		JS_FreeRuntime(rt);
-	}
-
-	{
-		const int nbuffer = 1024;
-		char buffer[nbuffer];
-		aijsondb_query("let result=data.employees.length;", buffer, nbuffer);
-	}
-	return 0;
+/*
+TEST_CASE("Test aijsondb read excel", "[domino]") {
+    test_mona();
 }
-#endif
+*/
+
+size_t save_result(std::map<size_t, jsoncons::json>& mapj, jsoncons::json& j);
+bool get_result(std::map<size_t, jsoncons::json>& mapj, size_t result_set_index, size_t index, std::string& bucket, jsoncons::json& value, bool& isArray);
+
+TEST_CASE("Test aijsondb create result set", "[domino]") {
+
+	std::map<size_t, jsoncons::json> mapj;
+	size_t index_result_set = 0;
+
+	JSRuntime* rt;
+	JSContext* ctx;
+	rt = JS_NewRuntime();
+	ctx = JS_NewContext(rt);
+	{
+		jsoncons::json jin(jsoncons::json_array_arg);
+		jin.push_back("a");
+		jin.push_back("b");
+		std::string eres_test;
+		{
+			std::stringstream sstin;
+			sstin << jin;
+			std::cout << "Serialized JSON: " << sstin.str() << std::endl;
+			eres_test = sstin.str();
+		}
+		{
+			jsoncons::json jin = eres_test;
+			std::stringstream sstin;
+			sstin << jin;
+			std::cout << "Serialized JSON: " << sstin.str() << std::endl;
+			eres_test = sstin.str();
+		}
+
+		std::string eres = "JSON.parse(" + eres_test + ")";
+		JSValue jsv = JS_Eval(ctx, eres.c_str(), eres.size(), "<result>", JS_EVAL_TYPE_GLOBAL);
+		if (JS_IsException(jsv)) {
+			FAIL("Failed to evaluate JavaScript expression");
+			JS_FreeValue(ctx, jsv);
+			JS_FreeContext(ctx);
+			JS_FreeRuntime(rt);
+			return;
+		}
+		jsoncons::json j;
+		toJsonWithVirtual(ctx, jsv, j);
+		std::stringstream sst;
+		sst << j;
+		std::cout << "Serialized JSON: " << sst.str() << std::endl;
+		//std::map<size_t, jsoncons::json> mapj;
+		index_result_set = save_result(mapj, j);
+
+		//REQUIRE(sst.str() == eres_test);
+		JS_FreeValue(ctx, jsv);
+	}
+	JS_FreeContext(ctx);
+	JS_FreeRuntime(rt);
+	size_t index = 0;
+	std::string bucket;
+	jsoncons::json fragment;
+	bool is_array = false;
+	std::vector<std::string> res;
+	while (get_result(mapj, index_result_set, index, bucket, fragment,is_array)) {
+		std::stringstream sst2;
+		sst2 << fragment;
+		std::cout << "Serialized JSON: " << sst2.str() << std::endl;
+		res.push_back(sst2.str());
+		REQUIRE(is_array==true);
+		index++;
+	}
+	REQUIRE(index == 2);
+	REQUIRE(res[0] == "\"a\"");
+	REQUIRE(res[1] == "\"b\"");
+}
+
+TEST_CASE("Test aijsondb create result set single integer", "[domino]") {
+
+	std::map<size_t, jsoncons::json> mapj;
+	size_t index_result_set = 0;
+
+	JSRuntime* rt;
+	JSContext* ctx;
+	rt = JS_NewRuntime();
+	ctx = JS_NewContext(rt);
+	{
+		jsoncons::json jin(100);
+		std::string eres_test;
+		{
+			std::stringstream sstin;
+			sstin << jin;
+			std::cout << "Serialized JSON: " << sstin.str() << std::endl;
+			eres_test = sstin.str();
+		}
+		{
+			jsoncons::json jin = eres_test;
+			std::stringstream sstin;
+			sstin << jin;
+			std::cout << "Serialized JSON: " << sstin.str() << std::endl;
+			eres_test = sstin.str();
+		}
+
+		std::string eres = "JSON.parse(" + eres_test + ")";
+		JSValue jsv = JS_Eval(ctx, eres.c_str(), eres.size(), "<result>", JS_EVAL_TYPE_GLOBAL);
+		if (JS_IsException(jsv)) {
+			FAIL("Failed to evaluate JavaScript expression");
+			JS_FreeValue(ctx, jsv);
+			JS_FreeContext(ctx);
+			JS_FreeRuntime(rt);
+			return;
+		}
+		jsoncons::json j;
+		toJsonWithVirtual(ctx, jsv, j);
+		std::stringstream sst;
+		sst << j;
+		std::cout << "Serialized JSON: " << sst.str() << std::endl;
+		//std::map<size_t, jsoncons::json> mapj;
+		index_result_set = save_result(mapj, j);
+
+		//REQUIRE(sst.str() == eres_test);
+		JS_FreeValue(ctx, jsv);
+	}
+	JS_FreeContext(ctx);
+	JS_FreeRuntime(rt);
+	size_t index = 0;
+	std::string bucket;
+	jsoncons::json fragment;
+	bool is_array = false;
+	std::vector<std::string> res;
+	while (get_result(mapj, index_result_set, index, bucket, fragment, is_array)) {
+		std::stringstream sst2;
+		sst2 << fragment;
+		std::cout << "Serialized JSON: " << sst2.str() << std::endl;
+		res.push_back(sst2.str());
+		index++;
+	}
+	REQUIRE(index == 1);
+	REQUIRE(res[0] == "100");
+}
+
+TEST_CASE("Test aijsondb create result set single float", "[domino]") {
+
+	std::map<size_t, jsoncons::json> mapj;
+	size_t index_result_set = 0;
+
+	JSRuntime* rt;
+	JSContext* ctx;
+	rt = JS_NewRuntime();
+	ctx = JS_NewContext(rt);
+	{
+		jsoncons::json jin(99.9);
+		std::string eres_test;
+		{
+			std::stringstream sstin;
+			sstin << jin;
+			std::cout << "Serialized JSON: " << sstin.str() << std::endl;
+			eres_test = sstin.str();
+		}
+		{
+			jsoncons::json jin = eres_test;
+			std::stringstream sstin;
+			sstin << jin;
+			std::cout << "Serialized JSON: " << sstin.str() << std::endl;
+			eres_test = sstin.str();
+		}
+
+		std::string eres = "JSON.parse(" + eres_test + ")";
+		JSValue jsv = JS_Eval(ctx, eres.c_str(), eres.size(), "<result>", JS_EVAL_TYPE_GLOBAL);
+		if (JS_IsException(jsv)) {
+			FAIL("Failed to evaluate JavaScript expression");
+			JS_FreeValue(ctx, jsv);
+			JS_FreeContext(ctx);
+			JS_FreeRuntime(rt);
+			return;
+		}
+		jsoncons::json j;
+		toJsonWithVirtual(ctx, jsv, j);
+		std::stringstream sst;
+		sst << j;
+		std::cout << "Serialized JSON: " << sst.str() << std::endl;
+		//std::map<size_t, jsoncons::json> mapj;
+		index_result_set = save_result(mapj, j);
+
+		//REQUIRE(sst.str() == eres_test);
+		JS_FreeValue(ctx, jsv);
+	}
+	JS_FreeContext(ctx);
+	JS_FreeRuntime(rt);
+	size_t index = 0;
+	std::string bucket;
+	jsoncons::json fragment;
+	bool is_array = false;
+	std::vector<std::string> res;
+	while (get_result(mapj, index_result_set, index, bucket, fragment, is_array)) {
+		std::stringstream sst2;
+		sst2 << fragment;
+		std::cout << "Serialized JSON: " << sst2.str() << std::endl;
+		res.push_back(sst2.str());
+		index++;
+	}
+	REQUIRE(index == 1);
+	REQUIRE(res[0] == "99.9");
+}
+
+TEST_CASE("Test aijsondb create result set bucket array", "[domino]") {
+
+	std::map<size_t, jsoncons::json> mapj;
+	size_t index_result_set = 0;
+
+	JSRuntime* rt;
+	JSContext* ctx;
+	rt = JS_NewRuntime();
+	ctx = JS_NewContext(rt);
+	{
+		jsoncons::json jin;
+		{
+			jsoncons::json jb(jsoncons::json_array_arg);
+			jb.push_back("a");
+			jb.push_back("b");
+			jin["bucket1"] = jb;
+		}
+		{
+			jsoncons::json jb(jsoncons::json_array_arg);
+			jb.push_back("c");
+			jb.push_back("d");
+			jin["bucket2"] = jb;
+		}
+		std::string eres_test;
+		{
+			std::stringstream sstin;
+			sstin << jin;
+			std::cout << "Serialized JSON: " << sstin.str() << std::endl;
+			eres_test = sstin.str();
+		}
+		{
+			jsoncons::json jin = eres_test;
+			std::stringstream sstin;
+			sstin << jin;
+			std::cout << "Serialized JSON: " << sstin.str() << std::endl;
+			eres_test = sstin.str();
+		}
+
+		std::string eres = "JSON.parse(" + eres_test + ")";
+		JSValue jsv = JS_Eval(ctx, eres.c_str(), eres.size(), "<result>", JS_EVAL_TYPE_GLOBAL);
+		if (JS_IsException(jsv)) {
+			FAIL("Failed to evaluate JavaScript expression");
+			JS_FreeValue(ctx, jsv);
+			JS_FreeContext(ctx);
+			JS_FreeRuntime(rt);
+			return;
+		}
+		jsoncons::json j;
+		toJsonWithVirtual(ctx, jsv, j);
+		std::stringstream sst;
+		sst << j;
+		std::cout << "Serialized JSON: " << sst.str() << std::endl;
+		//std::map<size_t, jsoncons::json> mapj;
+		index_result_set = save_result(mapj, j);
+
+		//REQUIRE(sst.str() == eres_test);
+		JS_FreeValue(ctx, jsv);
+	}
+	JS_FreeContext(ctx);
+	JS_FreeRuntime(rt);
+	size_t index = 0;
+	std::string bucket;
+	jsoncons::json fragment;
+	bool is_array = false;
+	std::vector<std::string> res;
+	while (get_result(mapj, index_result_set, index, bucket, fragment, is_array)) {
+		std::stringstream sst2;
+		sst2 << fragment;
+		std::cout << "Serialized JSON: " << sst2.str() << std::endl;
+		res.push_back(sst2.str());
+		REQUIRE(is_array == true);
+		index++;
+	}
+	REQUIRE(index == 4);
+	REQUIRE(res[0] == "\"a\"");
+	REQUIRE(res[1] == "\"b\"");
+	REQUIRE(res[2] == "\"c\"");
+	REQUIRE(res[3] == "\"d\"");
+}
+
+
+TEST_CASE("Test Domino query bucket object result set object", "[domino]") {
+	std::string path_data = test_data_dir();
+	path_data += "500 KB_V3.json";
+	std::string path_schema = test_data_dir();
+	path_schema += "employeeSchemaDescription_V3.json";
+	int res = aijsondb_load_data(path_data.c_str(), path_schema.c_str());
+	REQUIRE(res == 0);
+	char buffer[1024];
+	int nbuffer = 1024;
+	res = aijsondb_query_result_set(query_test1);
+	REQUIRE(res == 0);
+	char bucket[256];
+	int nbucket = 265;
+	bucket[0] = '\0';
+	int is_array = 0;
+	int index_result = 0;
+	while (aijsondb_result_set_next(res, index_result, bucket, nbucket, buffer, nbuffer, &is_array)==0)
+	{
+		jsoncons::json j = jsoncons::json::parse(buffer);
+		REQUIRE(j["id"] == "E00001");
+		REQUIRE(is_array==0);
+		REQUIRE(strlen(bucket) == 0);
+		index_result++;
+	}
+	REQUIRE(index_result == 1);
+	int is_clear=aijsondb_result_set_clear(res);
+	REQUIRE(is_clear == 0);
+}
+
+
+
+TEST_CASE("Test Domino query bucket object result set length", "[domino]") {
+	std::string path_data = test_data_dir();
+	path_data += "500 KB_V3.json";
+	std::string path_schema = test_data_dir();
+	path_schema += "employeeSchemaDescription_V3.json";
+	int res = aijsondb_load_data(path_data.c_str(), path_schema.c_str());
+	REQUIRE(res == 0);
+	char buffer[1024];
+	int nbuffer = 1024;
+	res = aijsondb_query_result_set("result=data.employees.length");
+	REQUIRE(res == 0);
+	char bucket[256];
+	int nbucket = 265;
+	bucket[0] = '\0';
+	int is_array = 0;
+	int index_result = 0;
+	while (aijsondb_result_set_next(res, index_result, bucket, nbucket, buffer, nbuffer, &is_array) == 0)
+	{
+		jsoncons::json j = jsoncons::json::parse(buffer);
+		REQUIRE(j.as<int>()==201);
+		REQUIRE(is_array == 0);
+		REQUIRE(strlen(bucket) == 0);
+		index_result++;
+	}
+	REQUIRE(index_result == 1);
+	int is_clear = aijsondb_result_set_clear(res);
+	REQUIRE(is_clear == 0);
+}
+
+TEST_CASE("Test Domino query bucket object result set array", "[domino]") {
+	std::string path_data = test_data_dir();
+	path_data += "500 KB_V3.json";
+	std::string path_schema = test_data_dir();
+	path_schema += "employeeSchemaDescription_V3.json";
+	int res = aijsondb_load_data(path_data.c_str(), path_schema.c_str());
+	REQUIRE(res == 0);
+	char buffer[1024];
+	int nbuffer = 1024;
+	res = aijsondb_query_result_set("result=data.employees");
+	REQUIRE(res == 0);
+	char bucket[256];
+	int nbucket = 265;
+	bucket[0] = '\0';
+	int is_array = 0;
+	int index_result = 0;
+	while (aijsondb_result_set_next(res, index_result, bucket, nbucket, buffer, nbuffer, &is_array) == 0)
+	{
+		jsoncons::json j = jsoncons::json::parse(buffer);
+		REQUIRE(is_array == 1);
+		std::string sbucket = bucket;
+		REQUIRE(sbucket.size()==0);
+		index_result++;
+	}
+	REQUIRE(index_result == 201);
+	int is_clear = aijsondb_result_set_clear(res);
+	REQUIRE(is_clear == 0);
+}
+
+
+
+TEST_CASE("Test Domino query bucket object result set bucket array", "[domino]") {
+	std::string path_data = test_data_dir();
+	path_data += "500 KB_V3.json";
+	std::string path_schema = test_data_dir();
+	path_schema += "employeeSchemaDescription_V3.json";
+	int res = aijsondb_load_data(path_data.c_str(), path_schema.c_str());
+	REQUIRE(res == 0);
+	char buffer[1024];
+	int nbuffer = 1024;
+	res = aijsondb_query_result_set("result={\"x\":data.employees}");
+	REQUIRE(res == 0);
+	char bucket[256];
+	int nbucket = 265;
+	bucket[0] = '\0';
+	int is_array = 0;
+	int index_result = 0;
+	while (aijsondb_result_set_next(res, index_result, bucket, nbucket, buffer, nbuffer, &is_array) == 0)
+	{
+		jsoncons::json j = jsoncons::json::parse(buffer);
+		REQUIRE(is_array == 1);
+		std::string sbucket = bucket;
+		REQUIRE(sbucket == "x");
+		index_result++;
+	}
+	REQUIRE(index_result == 201);
+	int is_clear = aijsondb_result_set_clear(res);
+	REQUIRE(is_clear == 0);
+}

@@ -1,4 +1,4 @@
-// Copyright 2013-2025 Daniel Parker
+// Copyright 2013-2026 Daniel Parker
 // Distributed under the Boost license, Version 1.0.
 // (See accompanying file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
@@ -162,7 +162,7 @@ namespace jsoncons {
             *this = parse(str, ec);
             if (JSONCONS_UNLIKELY(ec))
             {
-                JSONCONS_THROW(std::system_error(ec));
+                JSONCONS_THROW(std::system_error(ec, std::string(str)));
             }
         }
 
@@ -213,7 +213,7 @@ namespace jsoncons {
                 {
                     if (!validate_port(port))
                     {
-                        JSONCONS_THROW(std::system_error(uri_errc::invalid_port));
+                        JSONCONS_THROW(std::system_error(uri_errc::invalid_port, std::string(port)));
                     }
 
                     uri_string_.append(":");

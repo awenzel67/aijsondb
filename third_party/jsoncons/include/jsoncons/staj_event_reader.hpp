@@ -1,4 +1,4 @@
-// Copyright 2013-2025 Daniel Parker
+// Copyright 2013-2026 Daniel Parker
 // Distributed under the Boost license, Version 1.0.
 // (See accompanying file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
@@ -21,7 +21,7 @@
 #include <jsoncons/json_parser.hpp>
 #include <jsoncons/json_type.hpp>
 #include <jsoncons/semantic_tag.hpp>
-#include <jsoncons/ser_util.hpp>
+#include <jsoncons/ser_utils.hpp>
 #include <jsoncons/sink.hpp>
 #include <jsoncons/staj_event.hpp>
 #include <jsoncons/typed_array_view.hpp>
@@ -55,14 +55,14 @@ namespace jsoncons {
         std::size_t index_{0};
     public:
         basic_item_event_receiver()
-            : event_(staj_event_type::null_value),
+            : event_(staj_events::null_value),
               state_(), data_(), shape_()
         {
         }
 
         void reset()
         {
-            event_ = staj_event_type::null_value;
+            event_ = staj_events::null_value;
             state_ = {};
             data_ = {};
             shape_ = {};
@@ -377,43 +377,43 @@ namespace jsoncons {
 
         JSONCONS_VISITOR_RETURN_TYPE visit_begin_object(semantic_tag tag, const ser_context&, std::error_code&) override
         {
-            event_ = basic_staj_event<CharT>(staj_event_type::begin_object, tag);
+            event_ = basic_staj_event<CharT>(staj_events::begin_object, tag);
             JSONCONS_VISITOR_RETURN;
         }
 
         JSONCONS_VISITOR_RETURN_TYPE visit_begin_object(std::size_t length, semantic_tag tag, const ser_context&, std::error_code&) override
         {
-            event_ = basic_staj_event<CharT>(staj_event_type::begin_object, length, tag);
+            event_ = basic_staj_event<CharT>(staj_events::begin_object, length, tag);
             JSONCONS_VISITOR_RETURN;
         }
 
         JSONCONS_VISITOR_RETURN_TYPE visit_end_object(const ser_context&, std::error_code&) override
         {
-            event_ = basic_staj_event<CharT>(staj_event_type::end_object);
+            event_ = basic_staj_event<CharT>(staj_events::end_object);
             JSONCONS_VISITOR_RETURN;
         }
 
         JSONCONS_VISITOR_RETURN_TYPE visit_begin_array(semantic_tag tag, const ser_context&, std::error_code&) override
         {
-            event_ = basic_staj_event<CharT>(staj_event_type::begin_array, tag);
+            event_ = basic_staj_event<CharT>(staj_events::begin_array, tag);
             JSONCONS_VISITOR_RETURN;
         }
 
         JSONCONS_VISITOR_RETURN_TYPE visit_begin_array(std::size_t length, semantic_tag tag, const ser_context&, std::error_code&) override
         {
-            event_ = basic_staj_event<CharT>(staj_event_type::begin_array, length, tag);
+            event_ = basic_staj_event<CharT>(staj_events::begin_array, length, tag);
             JSONCONS_VISITOR_RETURN;
         }
 
         JSONCONS_VISITOR_RETURN_TYPE visit_end_array(const ser_context&, std::error_code&) override
         {
-            event_ = basic_staj_event<CharT>(staj_event_type::end_array);
+            event_ = basic_staj_event<CharT>(staj_events::end_array);
             JSONCONS_VISITOR_RETURN;
         }
 
         JSONCONS_VISITOR_RETURN_TYPE visit_null(semantic_tag tag, const ser_context&, std::error_code&) override
         {
-            event_ = basic_staj_event<CharT>(staj_event_type::null_value, tag);
+            event_ = basic_staj_event<CharT>(staj_events::null_value, tag);
             JSONCONS_VISITOR_RETURN;
         }
 
@@ -425,7 +425,7 @@ namespace jsoncons {
 
         JSONCONS_VISITOR_RETURN_TYPE visit_string(const string_view_type& s, semantic_tag tag, const ser_context&, std::error_code&) override
         {
-            event_ = basic_staj_event<CharT>(s, staj_event_type::string_value, tag);
+            event_ = basic_staj_event<CharT>(s, staj_events::string_value, tag);
             JSONCONS_VISITOR_RETURN;
         }
 
@@ -434,7 +434,7 @@ namespace jsoncons {
             const ser_context&,
             std::error_code&) override
         {
-            event_ = basic_staj_event<CharT>(s, staj_event_type::byte_string_value, tag);
+            event_ = basic_staj_event<CharT>(s, staj_events::byte_string_value, tag);
             JSONCONS_VISITOR_RETURN;
         }
 
@@ -443,7 +443,7 @@ namespace jsoncons {
             const ser_context&,
             std::error_code&) override
         {
-            event_ = basic_staj_event<CharT>(s, staj_event_type::byte_string_value, ext_tag);
+            event_ = basic_staj_event<CharT>(s, staj_events::byte_string_value, ext_tag);
             JSONCONS_VISITOR_RETURN;
         }
 
@@ -656,7 +656,7 @@ namespace jsoncons {
 
         virtual void array_expected(std::error_code& ec)
         {
-            if (!(current().event_type() == staj_event_type::begin_array || current().event_type() == staj_event_type::byte_string_value))
+            if (!(current().event_type() == staj_events::begin_array || current().event_type() == staj_events::byte_string_value))
             {
                 ec = conv_errc::not_vector;
             }

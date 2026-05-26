@@ -1,4 +1,4 @@
-// Copyright 2013-2025 Daniel Parker
+// Copyright 2013-2026 Daniel Parker
 // Distributed under the Boost license, Version 1.0.
 // (See accompanying file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
@@ -23,31 +23,25 @@
 namespace jsoncons {
 namespace jsonschema {
     
-    enum class walk_result {advance, abort};
+    enum class walk_state {advance, abort};
 
-    template <typename Json>
-    struct json_schema_traits    
-    {
-        using walk_reporter_type = std::function<walk_result(const std::string& keyword,
-            const Json& schema, const uri& schema_location,
-            const Json& instance, const jsonpointer::json_pointer& instance_location)>;      
-    };
+    // For backwards compatibility
+    using walk_result = walk_state;
 
     // Interface for validation error handlers
+    template <typename Json>
     class error_reporter
     {
         std::size_t error_count_{0};
     public:
-        error_reporter()
-        {
-        }
+        error_reporter() = default;
 
         virtual ~error_reporter() = default;
 
-        walk_result error(const validation_message& msg)
+        walk_state error(const validation_message& msg, jsoncons::optional<Json>& patch)
         {
             ++error_count_;
-            return do_error(msg);
+            return do_error(msg, patch);
         }
 
         std::size_t error_count() const
@@ -56,19 +50,54 @@ namespace jsonschema {
         }
 
     private:
-        virtual walk_result do_error(const validation_message& /* e */) = 0;
+        virtual walk_state do_error(const validation_message& /* msg */, 
+            jsoncons::optional<Json>& /*patch*/) = 0;
     };
 
-    struct collecting_error_listener : public error_reporter
+    template <typename Json>
+    struct collecting_error_listener : public error_reporter<Json>
     {
         std::vector<validation_message> errors;
 
     private:
-        walk_result do_error(const validation_message& msg) final
+        walk_state do_error(const validation_message& msg, 
+            jsoncons::optional<Json>& /*patch*/) final
         {
             errors.push_back(msg);
-            return walk_result::advance;
+            return walk_state::advance;
         }
+    };
+
+    template <typename Json>
+    class schema_property 
+    {
+    public:
+        virtual ~schema_property() = default;
+        virtual const std::string& keyword() const = 0; 
+        virtual const Json& subschemas() const = 0;
+        virtual const uri& schema_location() const = 0; 
+    };
+
+    // Interface for validation error handlers
+    template <typename Json>
+    class walk_reporter
+    {
+    public:
+        walk_reporter() = default;
+
+        virtual ~walk_reporter() = default;
+
+        walk_state walk(const schema_property<Json>& property,
+            const Json& instance, const jsonpointer::json_pointer& instance_location,
+            jsoncons::optional<Json>& patch) 
+        {
+            return do_walk(property, instance, instance_location, patch);
+        }
+
+    private:
+        virtual walk_state do_walk(const schema_property<Json>& property,
+            const Json& instance, const jsonpointer::json_pointer& instance_location,
+            jsoncons::optional<Json>& patch) = 0;
     };
 
     class range
@@ -194,26 +223,24 @@ namespace jsonschema {
     class validator_base 
     {
     public:
-        using walk_reporter_type = typename json_schema_traits<Json>::walk_reporter_type;
-
         virtual ~validator_base() = default;
 
         virtual const uri& schema_location() const = 0;
 
-        walk_result validate(const eval_context<Json>& context,
+        walk_state validate(const eval_context<Json>& context,
             const Json& instance, 
             const jsonpointer::json_pointer& instance_location,
             evaluation_results& results, 
-            error_reporter& reporter, 
-            Json& patch) const 
+            error_reporter<Json>& reporter, 
+            jsoncons::optional<Json>& patch) const 
         {
             return do_validate(context, instance, instance_location, results, reporter, patch);
         }
 
-        walk_result walk(const eval_context<Json>& context, const Json& instance, 
-            const jsonpointer::json_pointer& instance_location, const walk_reporter_type& reporter) const 
+        walk_state walk(const eval_context<Json>& context, const Json& instance, 
+            const jsonpointer::json_pointer& instance_location, walk_reporter<Json>& reporter, jsoncons::optional<Json>& patch) const
         {
-            return do_walk(context, instance, instance_location, reporter);
+            return do_walk(context, instance, instance_location, reporter, patch);
         }
         
         virtual bool always_fails() const = 0;
@@ -222,14 +249,15 @@ namespace jsonschema {
 
 
     private:
-        virtual walk_result do_validate(const eval_context<Json>& context, const Json& instance, 
+        virtual walk_state do_validate(const eval_context<Json>& context, const Json& instance, 
             const jsonpointer::json_pointer& instance_location,
             evaluation_results& results, 
-            error_reporter& reporter, 
-            Json& patch) const = 0;
+            error_reporter<Json>& reporter, 
+            jsoncons::optional<Json>& patch) const = 0;
 
-        virtual walk_result do_walk(const eval_context<Json>& /*context*/, const Json& instance, 
-            const jsonpointer::json_pointer& instance_location, const walk_reporter_type& reporter) const = 0;
+        virtual walk_state do_walk(const eval_context<Json>& /*context*/, const Json& instance, 
+            const jsonpointer::json_pointer& instance_location, walk_reporter<Json>& reporter, 
+            jsoncons::optional<Json>& patch) const = 0;
    };
 
     class validation_message_factory

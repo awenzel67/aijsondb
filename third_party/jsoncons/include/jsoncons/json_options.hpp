@@ -1,4 +1,4 @@
-// Copyright 2013-2025 Daniel Parker
+// Copyright 2013-2026 Daniel Parker
 // Distributed under the Boost license, Version 1.0.
 // (See accompanying file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
@@ -15,7 +15,7 @@
 
 #include <jsoncons/config/compiler_support.hpp>
 #include <jsoncons/json_error.hpp>
-#include <jsoncons/ser_util.hpp>
+#include <jsoncons/ser_utils.hpp>
 
 namespace jsoncons {
 
@@ -507,7 +507,9 @@ public:
     using basic_json_encode_options<CharT>::byte_string_format;
     using basic_json_encode_options<CharT>::bignum_format;
 
+#if !defined(JSONCONS_NO_DEPRECATED)
     using basic_json_encode_options<CharT>::line_splits;
+#endif
     using basic_json_encode_options<CharT>::root_line_splits;
     using basic_json_encode_options<CharT>::object_object_line_splits;
     using basic_json_encode_options<CharT>::array_object_line_splits;
