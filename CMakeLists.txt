@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.23)
 
 project(aijsondb)
 
-set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 set(IGNORE_ME ${CMAKE_C_COMPILER}) # Suppress CMake warning message
@@ -40,12 +40,15 @@ add_library(
     STATIC 
    #aijsondbexcel/aijsondbimportexcel.cpp
    aijsondbexcel/aijsondbimportexcelplus.cpp 
-   aijsondbexcel/excelhelper.cpp)
+   aijsondbexcel/excelhelper.cpp
+   ${PROJECT_SOURCE_DIR}/third_party/howard-hinnant/src/tz.cpp
+)
 target_link_libraries(aijsondbexcellib PRIVATE OpenXLSX::OpenXLSX)
-target_include_directories(aijsondbexcellib PRIVATE ${OpenXLSX_INCLUDES})
+target_include_directories(aijsondbexcellib PRIVATE ${OpenXLSX_INCLUDES} ${PROJECT_SOURCE_DIR}/third_party/howard-hinnant/include)
 set_target_properties(aijsondbexcellib PROPERTIES
   INSTALL_RPATH_USE_LINK_PATH TRUE
 )
+target_compile_definitions(aijsondbexcellib PRIVATE INSTALL=.)
 
 add_executable(aijsondbcli)
 

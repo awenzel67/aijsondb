@@ -1,6 +1,7 @@
 #ifndef EXCEL_HELPER_H
 #define EXCEL_HELPER_H
-#include <chrono>
+#include <date/date.h>
+#include <date/tz.h>
 #include <OpenXLSX.hpp>
 using namespace std;
 using namespace OpenXLSX;
@@ -25,6 +26,6 @@ E_EXCEL_LOGICAL_TYPE get_cell_type(std::vector<std::vector<E_EXCEL_LOGICAL_TYPE>
 
 
 std::string to_js_name(const std::string& label);
-std::string format_utc(const std::chrono::zoned_seconds& zs);
-void print_local(const std::chrono::zoned_seconds& zs);
+std::string format_utc(const date::zoned_seconds& zs);
+void print_local(const date::zoned_seconds& zs);
 #endif

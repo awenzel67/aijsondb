@@ -11,11 +11,12 @@
 #include <codecvt>
 #include <locale>
 #include <set>
-#include <chrono>
-#include <format>
+//#include <chrono>
+//#include <format>
 #include <filesystem>
 #include <time.h>
-
+#include <date/date.h>
+#include <date/tz.h>
 
 typedef std::tuple<int, std::vector<std::string>> HeaderInfo;
 
@@ -273,7 +274,7 @@ bool ExcelImporterPlus::import(const std::string& filepath, std::map<std::string
     //doc.create("./Demo01.xlsx", XLForceOverwrite);
     std::filesystem::path apa(filepath);
     std::string filename(apa.filename().string());
-    auto start = std::chrono::high_resolution_clock::now();
+    //auto start = date::high_resolution_clock::now();
 
     try {
         doc.open(filepath);
@@ -557,19 +558,29 @@ bool ExcelImporterPlus::import(const std::string& filepath, std::map<std::string
                                     //      }
                                     //      else
                                     {
-                                        const auto* local_tz = std::chrono::current_zone();
-                                        auto ymd = std::chrono::year_month_day{
-                                            std::chrono::year{tm.tm_year + 1900},
-                                            std::chrono::month{static_cast<unsigned>(tm.tm_mon + 1)},
-                                            std::chrono::day{static_cast<unsigned>(tm.tm_mday)}
+                                        const auto* local_tz = date::current_zone();
+                                        auto ymd = date::year_month_day{
+                                            date::year{tm.tm_year + 1900},
+                                            date::month{static_cast<unsigned>(tm.tm_mon + 1)},
+                                            date::day{static_cast<unsigned>(tm.tm_mday)}
                                         };
-                                        auto local_time = std::chrono::local_days{ ymd } +
+
+                                        /*
+                                        auto time = date::hh_mm_ss{
                                             std::chrono::hours{ tm.tm_hour } +
                                             std::chrono::minutes{ tm.tm_min } +
-                                            std::chrono::seconds{ tm.tm_sec };
+                                            std::chrono::seconds{ tm.tm_sec }
+                                        };
+                                        */
+                                        auto local_time = date::local_days{ ymd };
+                                       
+
+                                        auto time_of_day = std::chrono::hours{ tm.tm_hour } +std::chrono::minutes{ tm.tm_min } + std::chrono::seconds{ tm.tm_sec };
+                                       
+                                        date::local_seconds local_tp = date::local_days{ ymd } + time_of_day;
 
                                         // Convert to sys_time (UTC)
-                                        auto zt = std::chrono::zoned_time{ local_tz, local_time };
+                                        auto zt = date::zoned_seconds( local_tz, local_tp );
                                         sdatetime = format_utc(zt);
                                     }
                                 }
@@ -650,8 +661,8 @@ bool ExcelImporterPlus::import(const std::string& filepath, std::map<std::string
     {
         schema = js.to_string();
     }
-    auto stop = std::chrono::high_resolution_clock::now();
-    auto duration = std::chrono::duration_cast<std::chrono::microseconds>(stop - start);
+    //auto stop = std::chrono::high_resolution_clock::now();
+    //auto duration = std::chrono::duration_cast<std::chrono::microseconds>(stop - start);
     // std::cout << "Time taken: " << duration.count() * 1.0 / 1000.0 / 1000.0 << " microseconds" << std::endl;
     // std::clog << "Processing complete" << std::endl;
     //UseSequentialIDs();
