@@ -1,12 +1,30 @@
-# aijsondb - loved by AIs
+# aijsondb – Query Your Data with JavaScript
 
-Like any other database aijsondb can be used to query a datastructure to get an answer data structure as result. What make it different is that we chose:
+**Loved by AIs: Now with Excel importer!**
 
-* A single JSON document as its data structure.
-* JavaScript as the query language.
-* JSON Schema to describe the JSON document.
+The idea behind **aijsondb** is inspired by **[DuckDB](https://github.com/duckdb/duckdb)**. It allows you to query your data and receive a result dataset as output. What sets it apart is our choice of:
 
-These features are not good choices if a human writes the query but are rather good choices if an actual llm creates the query based on user input in natural language.
+- A **single JSON document** as the data structure.
+- **JavaScript** as the query language.
+- **JSON Schema** to describe the JSON document.
+
+While these choices may not be ideal for humans writing queries, they are well-suited for **LLMs** generating queries based on natural language input.
+
+In a comparison of an **aijsondb**-based JavaScript agent and an SQL agent using the same 100 questions on the same dataset, **aijsondb achieved 95% correct answers**, compared to 81% for SQL. For more details, see [this article](https://medium.com/@awenzel67/talk-to-your-data-a-new-approach-using-javascript-instead-of-sql-yields-better-results-d0c3d260cb68).
+
+## Features
+
+**aijsondb** is designed for use with AI agents. Library bindings are available for:
+
+- [Python](https://github.com/awenzel67/aijsondb-py)
+- [Java](https://github.com/awenzel67/aijsondb-java)
+
+Additionally, **aijsondb** includes a CLI for:
+
+- Validating your JSON data against a JSON Schema.
+- Querying data with JavaScript.
+- Importing data from XLSX (Excel).
+- Creating JSON data and JSON Schema from XLSX (Excel).
 
 ## Getting started
 
