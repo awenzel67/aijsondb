@@ -15,9 +15,10 @@ set(OPENXLSX_BUILD_SAMPLES         OFF)
 if (MSVC)
 set(         BUILD_SHARED_LIBS     OFF)
 else()
-set(         BUILD_SHARED_LIBS     ON)
+set(         BUILD_SHARED_LIBS     OFF)
 endif()
-#set ( OPENXLSX_MONOLITHIC_LIBRARY ON)
+
+set ( CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 add_subdirectory( OpenXLSX )
 
