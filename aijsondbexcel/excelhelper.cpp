@@ -215,32 +215,3 @@ std::string to_js_name(const std::string& label)
     return to_js_name_w(wjsname);
 }
 
-std::string format_utc(const std::chrono::zoned_seconds& zs) {
-    auto tp = zs.get_sys_time();
-    auto dp = std::chrono::floor<std::chrono::days>(tp);
-    auto ymd = std::chrono::year_month_day{ std::chrono::sys_days{dp} };
-    auto time = std::chrono::hh_mm_ss{ tp - dp };
-    std::ostringstream oss;
-    oss << static_cast<int>(ymd.year()) << "-"
-        << std::setfill('0') << std::setw(2) << static_cast<unsigned>(ymd.month()) << "-"
-        << std::setw(2) << static_cast<unsigned>(ymd.day()) << "T"
-        << std::setw(2) << time.hours().count() << ":"
-        << std::setw(2) << time.minutes().count() << ":"
-        << std::setw(2) << time.seconds().count() << "Z";
-    return oss.str();
-}
-
-void print_local(const std::chrono::zoned_seconds& zs) {
-    auto lt = zs.get_local_time();
-    auto tz = zs.get_time_zone();
-    auto dp = std::chrono::floor<std::chrono::days>(lt);
-    auto ymd = std::chrono::year_month_day{ std::chrono::local_days{dp} };
-    auto time = std::chrono::hh_mm_ss{ lt - dp };
-    std::cout << tz->name() << " local: "
-        << static_cast<int>(ymd.year()) << "-"
-        << std::setfill('0') << std::setw(2) << static_cast<unsigned>(ymd.month()) << "-"
-        << std::setw(2) << static_cast<unsigned>(ymd.day()) << " "
-        << std::setw(2) << time.hours().count() << ":"
-        << std::setw(2) << time.minutes().count() << ":"
-        << std::setw(2) << time.seconds().count() << "\n";
-}
