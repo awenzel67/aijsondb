@@ -1,8 +1,7 @@
-#include <chrono>
+#include "chrono_helper.h"
 #include <iostream>
-#include <time.h>
-
-
+#include <ctime>
+#include <chrono>
 std::string format_utc(const std::chrono::zoned_seconds& zs) {
     auto tp = zs.get_sys_time();
     auto dp = std::chrono::floor<std::chrono::days>(tp);
@@ -18,7 +17,7 @@ std::string format_utc(const std::chrono::zoned_seconds& zs) {
     return oss.str();
 }
 
-std::string utc_time_string(tm& tm){
+std::string utc_time_string(std::tm& tm){
     const auto* local_tz = std::chrono::current_zone();
     auto ymd = std::chrono::year_month_day{
         std::chrono::year{tm.tm_year + 1900},

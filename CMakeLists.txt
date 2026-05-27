@@ -48,6 +48,7 @@ add_library(
    aijsondbexcel/aijsondbimportexcelplus.cpp 
    aijsondbexcel/excelhelper.cpp
    aijsondbexcel/chrono_helper.cpp
+   aijsondbexcel/chrono_helper_posix.cpp
 )
 target_link_libraries(aijsondbexcellib PRIVATE OpenXLSX::OpenXLSX)
 target_include_directories(aijsondbexcellib PRIVATE ${OpenXLSX_INCLUDES})

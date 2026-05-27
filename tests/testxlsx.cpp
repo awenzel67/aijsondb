@@ -27,7 +27,7 @@ std::string xslx_add_file(const std::string fname)
 {
 	//TempDir temp_dir;
 	std::string path_data = test_data_dir_xlsx();
-	path_data+="/" + fname;
+	path_data+= fname;
 	std::string ret= path_data;
 	std::cout << ret << std::endl;
 	return ret;
@@ -1757,3 +1757,30 @@ TEST_CASE("Test Domino query excel unmerge", "[domino]") {
 }
 
 #endif
+
+std::string utc_time_string_posix(std::tm& tm);
+
+TEST_CASE("Test Domino utc_posix", "[domino]") {
+	{
+		std::tm loc_tm = {};
+		loc_tm.tm_year = 2023 - 1900;
+		loc_tm.tm_mon = 1; // February
+		loc_tm.tm_mday = 15;
+		loc_tm.tm_hour = 12;
+		loc_tm.tm_min = 30;
+		auto ret = utc_time_string_posix(loc_tm);
+		std::cout << ret << std::endl;
+		REQUIRE(ret=="2023-02-15T11:30:00Z");
+	}
+	{
+		std::tm loc_tm = {};
+		loc_tm.tm_year = 1965 - 1900;
+		loc_tm.tm_mon = 3; // February
+		loc_tm.tm_mday = 11;
+		loc_tm.tm_hour = 12;
+		loc_tm.tm_min = 30;
+		auto ret = utc_time_string_posix(loc_tm);
+		std::cout << ret << std::endl;
+		//REQUIRE(ret == "2023-02-15T11:30:00Z");
+	}
+}
