@@ -11,11 +11,10 @@
 #include <codecvt>
 #include <locale>
 #include <set>
-#include <chrono>
 #include <format>
 #include <filesystem>
 #include <time.h>
-
+#include "chrono_helper.h"
 
 typedef std::tuple<int, std::vector<std::string>> HeaderInfo;
 
@@ -549,29 +548,7 @@ bool ExcelImporterPlus::import(const std::string& filepath, std::map<std::string
                                 std::string sdatetime;
                                 if (target_value_type == E_EXCEL_LOGICAL_TYPE::DATE_TIME)
                                 {
-                                    //      if (t >= 0)
-                                    //      {
-                                    //          char buf[sizeof "2011-10-08T07:07:09Z"];
-                                    //          strftime(buf, sizeof buf, "%FT%TZ", std::gmtime(&t));
-                                    //			sdatetime = buf;
-                                    //      }
-                                    //      else
-                                    {
-                                        const auto* local_tz = std::chrono::current_zone();
-                                        auto ymd = std::chrono::year_month_day{
-                                            std::chrono::year{tm.tm_year + 1900},
-                                            std::chrono::month{static_cast<unsigned>(tm.tm_mon + 1)},
-                                            std::chrono::day{static_cast<unsigned>(tm.tm_mday)}
-                                        };
-                                        auto local_time = std::chrono::local_days{ ymd } +
-                                            std::chrono::hours{ tm.tm_hour } +
-                                            std::chrono::minutes{ tm.tm_min } +
-                                            std::chrono::seconds{ tm.tm_sec };
-
-                                        // Convert to sys_time (UTC)
-                                        auto zt = std::chrono::zoned_time{ local_tz, local_time };
-                                        sdatetime = format_utc(zt);
-                                    }
+                                    sdatetime = utc_time_string(tm);
                                 }
                                 else
                                 {

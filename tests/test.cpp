@@ -5,7 +5,6 @@
 #include <jsoncons_ext/jsonschema/jsonschema.hpp>
 #include "quickjs.h"
 #include "../aijsondb/aijsondbresolver.h"
-#include "../aijsondbexcel/aijsondbimportexcel.h"
 #include <sstream>
 #include <filesystem>
 #include <memory>
