@@ -1,7 +1,7 @@
 #include "chrono_helper.h"
 #include <ctime>
 #include <string>
-std::string utc_time_string_posix(tm& tm)
+std::string utc_time_string(tm& tm)
 {
     std::string ret;
     std::time_t t = std::mktime(&tm);

@@ -5,7 +5,7 @@ project(aijsondb)
 if (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
     set(CMAKE_CXX_STANDARD 17)
 else()
-    set(CMAKE_CXX_STANDARD 20)
+    set(CMAKE_CXX_STANDARD 17)
 endif()
 
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -40,7 +40,7 @@ message($ENV{TEST_DOMINO_DATA})
 
 include_directories(${PROJECT_SOURCE_DIR}/aijsondb  ${PROJECT_SOURCE_DIR}/third_party/quickjs-ng ${PROJECT_SOURCE_DIR}/third_party/jsoncons/include ${PROJECT_SOURCE_DIR}/third_party/bw-tempdir)
 
-
+if(${CMAKE_CXX_STANDARD} MATCHES  "20")
 add_library( 
     aijsondbexcellib   
     STATIC 
@@ -48,8 +48,18 @@ add_library(
    aijsondbexcel/aijsondbimportexcelplus.cpp 
    aijsondbexcel/excelhelper.cpp
    aijsondbexcel/chrono_helper.cpp
+)
+else()
+add_library( 
+    aijsondbexcellib   
+    STATIC 
+   #aijsondbexcel/aijsondbimportexcel.cpp
+   aijsondbexcel/aijsondbimportexcelplus.cpp 
+   aijsondbexcel/excelhelper.cpp
    aijsondbexcel/chrono_helper_posix.cpp
 )
+endif()
+
 target_link_libraries(aijsondbexcellib PRIVATE OpenXLSX::OpenXLSX)
 target_include_directories(aijsondbexcellib PRIVATE ${OpenXLSX_INCLUDES})
 set_target_properties(aijsondbexcellib PROPERTIES

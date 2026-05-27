@@ -1758,7 +1758,7 @@ TEST_CASE("Test Domino query excel unmerge", "[domino]") {
 
 #endif
 
-std::string utc_time_string_posix(std::tm& tm);
+std::string utc_time_string(std::tm& tm);
 
 TEST_CASE("Test Domino utc_posix", "[domino]") {
 	{
@@ -1768,7 +1768,7 @@ TEST_CASE("Test Domino utc_posix", "[domino]") {
 		loc_tm.tm_mday = 15;
 		loc_tm.tm_hour = 12;
 		loc_tm.tm_min = 30;
-		auto ret = utc_time_string_posix(loc_tm);
+		auto ret = utc_time_string(loc_tm);
 		std::cout << ret << std::endl;
 		REQUIRE(ret=="2023-02-15T11:30:00Z");
 	}
@@ -1779,7 +1779,7 @@ TEST_CASE("Test Domino utc_posix", "[domino]") {
 		loc_tm.tm_mday = 11;
 		loc_tm.tm_hour = 12;
 		loc_tm.tm_min = 30;
-		auto ret = utc_time_string_posix(loc_tm);
+		auto ret = utc_time_string(loc_tm);
 		std::cout << ret << std::endl;
 		//REQUIRE(ret == "2023-02-15T11:30:00Z");
 	}
